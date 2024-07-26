@@ -1,7 +1,6 @@
 package main
 
 import (
-	"backend/src/api"
 	"context"
 	"database/sql"
 	"log"
@@ -9,9 +8,9 @@ import (
 	"os"
 
 	_ "github.com/lib/pq"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
-	_ "backend/src/api"
+	"backend/src/api"
 )
 
 type Config struct {
