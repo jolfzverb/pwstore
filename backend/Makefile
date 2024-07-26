@@ -3,13 +3,17 @@ SOURCES=$(shell find src/ -name "*.go")
 
 .PHONY: format
 format:
-	gofmt -w `find -name *.go`
+	gofmt -w ${SOURCES}
 
 .PHONY: build
 build: ${BUILD}/pwstore_backend
 
 .PHONY: codegen
 codegen: src/api/api.go
+
+.PHONY: run
+run: build
+	./build/pwstore_backend
 
 ${BUILD}/pwstore_backend: ${SOURCES}
 	mkdir -p ${BUILD}
