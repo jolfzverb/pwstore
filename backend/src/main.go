@@ -1,27 +1,48 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"sync"
+
+	_ "github.com/lib/pq"
+	"gopkg.in/yaml.v2"
 )
 
+type Config struct {
+	Database struct {
+		ConnectionString string `yaml:"connection_string"`
+	} `yaml:"database"`
+}
+
 type Item struct {
-	ID    int     `json:"id"`
+	ID    string  `json:"id"`
 	Name  string  `json:"name"`
 	Price float64 `json:"price"`
 }
 
 var (
-	items  = []Item{}
-	nextID = 1
-	mu     sync.Mutex
+	db *sql.DB
 )
 
 func main() {
+	var err error
+	config, err := loadConfig("config.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	db, err = sql.Open("postgres", config.Database.ConnectionString)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = db.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
 	http.Handle("/", http.NotFoundHandler())
 
 	http.HandleFunc("/hi", func(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +53,19 @@ func main() {
 	log.Println("Server started at :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 
+}
+
+func loadConfig(filename string) (*Config, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	var config Config
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
 
 func itemsHandler(w http.ResponseWriter, r *http.Request) {
@@ -55,8 +89,27 @@ func itemHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getItems(w http.ResponseWriter, r *http.Request) {
-	mu.Lock()
-	defer mu.Unlock()
+	rows, err := db.Query("SELECT id, name, price FROM items")
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var items []Item
+	for rows.Next() {
+		var item Item
+		if err := rows.Scan(&item.ID, &item.Name, &item.Price); err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(items)
 }
@@ -68,11 +121,13 @@ func addItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mu.Lock()
-	newItem.ID = nextID
-	nextID++
-	items = append(items, newItem)
-	mu.Unlock()
+	err := db.QueryRow(
+		"INSERT INTO items (name, price) VALUES ($1, $2) RETURNING id",
+		newItem.Name, newItem.Price).Scan(&newItem.ID)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(newItem)
