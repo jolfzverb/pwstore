@@ -15,10 +15,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	server, err := endpoints.InitializeServer()
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	log.Println("Server started at :8080")
 	log.Fatal(server.ListenAndServe())
 }

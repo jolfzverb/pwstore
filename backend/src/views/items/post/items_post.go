@@ -1,4 +1,4 @@
-package post
+package items_post
 
 import "C"
 import (
@@ -6,6 +6,7 @@ import (
 	"backend/src/dependencies"
 	"context"
 	_ "embed"
+	"log"
 )
 
 //go:embed queries/insert_items.sql
@@ -17,10 +18,11 @@ type Item struct {
 	Price float32 `json:"price"`
 }
 
-func PostItems(ctx context.Context, request api.PostItemsRequestObject) (api.PostItemsResponseObject, error) {
-	deps := dependencies.GetDependencies()
+func PostItems(deps dependencies.Collection, ctx context.Context, request api.PostItemsRequestObject) (api.PostItemsResponseObject, error) {
+	log.Println("Start handling POST /items")
 	stmt, err := deps.Db.Prepare(insertItemsSql)
 	if err != nil {
+		log.Printf("Failed to prepare statement: %s\n", err.Error())
 		return nil, err
 	}
 	defer stmt.Close()
@@ -29,6 +31,7 @@ func PostItems(ctx context.Context, request api.PostItemsRequestObject) (api.Pos
 	err = stmt.QueryRow(request.Body.Name, request.Body.Price).Scan(&newItem.Id, &newItem.Name, &newItem.Price)
 
 	if err != nil {
+		log.Printf("Failed to execute statement: %s\n", err.Error())
 		return nil, err
 	}
 

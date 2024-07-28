@@ -206,7 +206,9 @@ type GetItemsResponseObject interface {
 	VisitGetItemsResponse(w http.ResponseWriter) error
 }
 
-type GetItems200JSONResponse []Item
+type GetItems200JSONResponse struct {
+	Items []Item `json:"items"`
+}
 
 func (response GetItems200JSONResponse) VisitGetItemsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
