@@ -15,6 +15,10 @@ codegen: src/api/api.go
 run: build
 	./build/pwstore_backend
 
+.PHONY: test
+test: build
+	go test -v ./src/tests
+
 ${BUILD}/pwstore_backend: ${SOURCES}
 	mkdir -p ${BUILD}
 	go build -o ${BUILD}/pwstore_backend src/main.go

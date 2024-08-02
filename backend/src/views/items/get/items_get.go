@@ -19,7 +19,6 @@ type Item struct {
 }
 
 func GetItems(deps dependencies.Collection, ctx context.Context, request api.GetItemsRequestObject) (api.GetItemsResponseObject, error) {
-	log.Println("Start handling GET /items")
 	stmt, err := deps.Db.Prepare(selectItemsSql)
 	if err != nil {
 		log.Printf("Failed to prepare statement: %s\n", err.Error())

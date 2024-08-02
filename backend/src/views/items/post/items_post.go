@@ -19,7 +19,6 @@ type Item struct {
 }
 
 func PostItems(deps dependencies.Collection, ctx context.Context, request api.PostItemsRequestObject) (api.PostItemsResponseObject, error) {
-	log.Println("Start handling POST /items")
 	stmt, err := deps.Db.Prepare(insertItemsSql)
 	if err != nil {
 		log.Printf("Failed to prepare statement: %s\n", err.Error())
