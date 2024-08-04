@@ -1,37 +1,43 @@
 package tests
 
 import (
-	"backend/src/dependencies"
-	"backend/src/endpoints"
+	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"gopkg.in/DATA-DOG/go-sqlmock.v1"
+
+	"backend/internal/dependencies"
+	"backend/internal/endpoints"
 )
 
 type TestContext struct {
 	db      *sql.DB
 	handler http.Handler
 	pgMock  sqlmock.Sqlmock
+	ctx     context.Context
 }
 
 func Prepare(t *testing.T) TestContext {
-	var context TestContext
+	t.Helper()
+	var testContext TestContext
 	var err error
-	context.db, context.pgMock, err = sqlmock.New()
+	testContext.db, testContext.pgMock, err = sqlmock.New()
 	if err != nil {
 		t.Errorf("failed to set up SQL mock")
 	}
 
-	context.handler = endpoints.GetHandler(
+	testContext.handler = endpoints.GetHandler(
 		dependencies.Collection{
-			DB:     context.db,
+			DB:     testContext.db,
 			Config: nil,
 		})
-	return context
+	testContext.ctx = context.Background()
+	return testContext
 }
 
 func Finalize(c TestContext) {
@@ -49,7 +55,7 @@ func TestGetItems(t *testing.T) {
 				sqlmock.NewRows([]string{"id", "name", "price"}).
 					AddRow("id", "name", 1))
 
-		request, _ := http.NewRequest(http.MethodGet, "/items", nil)
+		request, _ := http.NewRequestWithContext(c.ctx, http.MethodGet, "/items", nil)
 		response := httptest.NewRecorder()
 		c.handler.ServeHTTP(response, request)
 
@@ -71,7 +77,7 @@ func TestPostItems(t *testing.T) {
 					AddRow("id", "name", 1))
 
 		requestBody := `{"name":"name","price":1}`
-		request, _ := http.NewRequest(http.MethodPost, "/items", strings.NewReader(requestBody))
+		request, _ := http.NewRequestWithContext(c.ctx, http.MethodPost, "/items", strings.NewReader(requestBody))
 		response := httptest.NewRecorder()
 		c.handler.ServeHTTP(response, request)
 

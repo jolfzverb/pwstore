@@ -1,2 +1,2 @@
 database:
-  connection_string: "user=postgres password=5vrXetMwYFuNOfAfmUQCSatjwG dbname=postgres sslmode=disable"
+  connectionString: "user=postgres password=5vrXetMwYFuNOfAfmUQCSatjwG dbname=postgres sslmode=disable"

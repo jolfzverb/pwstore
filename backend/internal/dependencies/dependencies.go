@@ -2,6 +2,8 @@ package dependencies
 
 import (
 	"database/sql"
+
+	// register postgres api.
 	_ "github.com/lib/pq"
 )
 

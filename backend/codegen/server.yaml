@@ -3,4 +3,4 @@ generate:
   std-http-server: true
   models: true
   strict-server: true
-output: src/api/api.go
+output: internal/api/api.go

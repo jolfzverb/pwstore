@@ -1,12 +1,14 @@
 package itemsget
 
 import "C"
+
 import (
-	"backend/src/api"
-	"backend/src/dependencies"
 	"context"
 	_ "embed"
 	"fmt"
+
+	"backend/internal/api"
+	"backend/internal/dependencies"
 )
 
 //go:embed queries/select_items.sql
@@ -18,14 +20,14 @@ type Item struct {
 	Price float32 `json:"price"`
 }
 
-func GetItems(deps dependencies.Collection, ctx context.Context, request api.GetItemsRequestObject) (api.GetItemsResponseObject, error) {
-	stmt, err := deps.DB.Prepare(selectItemsSQL)
+func GetItems(ctx context.Context, deps dependencies.Collection, _ api.GetItemsRequestObject) (api.GetItemsResponseObject, error) {
+	stmt, err := deps.DB.PrepareContext(ctx, selectItemsSQL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query()
+	rows, err := stmt.QueryContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}

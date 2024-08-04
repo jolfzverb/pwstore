@@ -1,11 +1,12 @@
 package main
 
 import (
-	"backend/src/dependencies"
-	"backend/src/endpoints"
 	"flag"
 	"log/slog"
 	"os"
+
+	"backend/internal/dependencies"
+	"backend/internal/endpoints"
 )
 
 func main() {

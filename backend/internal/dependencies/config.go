@@ -1,13 +1,14 @@
 package dependencies
 
 import (
-	"gopkg.in/yaml.v3"
 	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 type ConfigType struct {
 	Database struct {
-		ConnectionString string `yaml:"connection_string"`
+		ConnectionString string `yaml:"connectionString"`
 	} `yaml:"database"`
 }
 
