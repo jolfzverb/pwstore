@@ -1,4 +1,3 @@
-BUILD=build
 SOURCES=$(shell find . -name "*.go")
 
 .PHONY: format
@@ -6,23 +5,22 @@ format:
 	gofmt -w ${SOURCES}
 
 .PHONY: build
-build: ${BUILD}/pwstore_backend
+build: pwstore_backend
 
 .PHONY: codegen
 codegen: internal/api/api.go
 
 .PHONY: run
 run: build
-	${BUILD}/pwstore_backend
+	./pwstore_backend
 
 .PHONY: test
 test: build
-	go test -v ./internal/tests
+	go test -v ./test
 
-${BUILD}/pwstore_backend: ${SOURCES}
-	mkdir -p ${BUILD}
-	go build -o ${BUILD}/pwstore_backend cmd/rest/main.go
+pwstore_backend: ${SOURCES}
+	go build -o pwstore_backend cmd/rest/main.go
 
-src/api/api.go: docs/api/api.yaml codegen/server.yaml
+internal/api/api.go: api/api.yaml configs/codegen/server.yaml
 	mkdir -p internal/api
-	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --config codegen/server.yaml  docs/api/api.yaml
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --config configs/codegen/server.yaml  api/api.yaml
