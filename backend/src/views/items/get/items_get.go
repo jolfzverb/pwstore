@@ -1,4 +1,4 @@
-package items_get
+package itemsget
 
 import "C"
 import (
@@ -6,11 +6,11 @@ import (
 	"backend/src/dependencies"
 	"context"
 	_ "embed"
-	"log"
+	"fmt"
 )
 
 //go:embed queries/select_items.sql
-var selectItemsSql string
+var selectItemsSQL string
 
 type Item struct {
 	ID    string  `json:"id"`
@@ -19,17 +19,15 @@ type Item struct {
 }
 
 func GetItems(deps dependencies.Collection, ctx context.Context, request api.GetItemsRequestObject) (api.GetItemsResponseObject, error) {
-	stmt, err := deps.Db.Prepare(selectItemsSql)
+	stmt, err := deps.DB.Prepare(selectItemsSQL)
 	if err != nil {
-		log.Printf("Failed to prepare statement: %s\n", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	defer stmt.Close()
 
 	rows, err := stmt.Query()
 	if err != nil {
-		log.Printf("Failed to execute query: %s\n", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 
@@ -37,14 +35,12 @@ func GetItems(deps dependencies.Collection, ctx context.Context, request api.Get
 	for rows.Next() {
 		var item Item
 		if err := rows.Scan(&item.ID, &item.Name, &item.Price); err != nil {
-			log.Printf("Failed to scan item: %s\n", err.Error())
-			return nil, err
+			return nil, fmt.Errorf("failed to scan item: %w", err)
 		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("Failed to scan items: %s\n", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("failed to scan items: %w", err)
 	}
 	response := api.GetItems200JSONResponse{}
 	for _, item := range items {

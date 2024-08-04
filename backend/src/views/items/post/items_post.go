@@ -1,16 +1,15 @@
-package items_post
+package itemspost
 
-import "C"
 import (
 	"backend/src/api"
 	"backend/src/dependencies"
 	"context"
 	_ "embed"
-	"log"
+	"fmt"
 )
 
 //go:embed queries/insert_items.sql
-var insertItemsSql string
+var insertItemsSQL string
 
 type Item struct {
 	ID    string  `json:"id"`
@@ -19,10 +18,9 @@ type Item struct {
 }
 
 func PostItems(deps dependencies.Collection, ctx context.Context, request api.PostItemsRequestObject) (api.PostItemsResponseObject, error) {
-	stmt, err := deps.Db.Prepare(insertItemsSql)
+	stmt, err := deps.DB.Prepare(insertItemsSQL)
 	if err != nil {
-		log.Printf("Failed to prepare statement: %s\n", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	defer stmt.Close()
 
@@ -30,8 +28,7 @@ func PostItems(deps dependencies.Collection, ctx context.Context, request api.Po
 	err = stmt.QueryRow(request.Body.Name, request.Body.Price).Scan(&newItem.Id, &newItem.Name, &newItem.Price)
 
 	if err != nil {
-		log.Printf("Failed to execute statement: %s\n", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("failed to execute statement: %w", err)
 	}
 
 	return api.PostItems200JSONResponse(newItem), nil

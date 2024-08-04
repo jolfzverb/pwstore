@@ -6,33 +6,26 @@ import (
 )
 
 type Collection struct {
-	Db     *sql.DB
+	DB     *sql.DB
 	Config *ConfigType
 }
 
-var (
-	deps Collection
-)
-
-func InitializeDependencies(configFile string) (*Collection, error) {
+func CreateDependencies(configFile string) (*Collection, error) {
 	var err error
+	var deps Collection
 	deps.Config, err = GetConfig(configFile)
 	if err != nil {
 		return nil, err
 	}
 
-	deps.Db, err = sql.Open("postgres", deps.Config.Database.ConnectionString)
+	deps.DB, err = sql.Open("postgres", deps.Config.Database.ConnectionString)
 	if err != nil {
 		return nil, err
 	}
-	err = deps.Db.Ping()
+	err = deps.DB.Ping()
 	if err != nil {
 		return nil, err
 	}
 
 	return &deps, nil
-}
-
-func GetDependencies() Collection {
-	return deps
 }

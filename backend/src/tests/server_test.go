@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"backend/src/api"
 	"backend/src/dependencies"
 	"backend/src/endpoints"
 	"database/sql"
@@ -27,13 +26,11 @@ func Prepare(t *testing.T) TestContext {
 		t.Errorf("failed to set up SQL mock")
 	}
 
-	handlers := endpoints.Handlers{
-		Deps: dependencies.Collection{
-			Db:     context.db,
+	context.handler = endpoints.GetHandler(
+		dependencies.Collection{
+			DB:     context.db,
 			Config: nil,
-		},
-	}
-	context.handler = api.Handler(api.NewStrictHandler(handlers, nil))
+		})
 	return context
 }
 
@@ -45,6 +42,7 @@ func TestGetItems(t *testing.T) {
 	t.Run("simple test api response", func(t *testing.T) {
 		// set up mock
 		c := Prepare(t)
+		defer Finalize(c)
 
 		c.pgMock.ExpectPrepare("SELECT id, name, price FROM items").ExpectQuery().
 			WillReturnRows(
@@ -59,7 +57,6 @@ func TestGetItems(t *testing.T) {
 
 		require.EqualValues(t, 200, response.Code)
 		require.JSONEq(t, expectedResponse, response.Body.String())
-		Finalize(c)
 	})
 }
 

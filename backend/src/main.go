@@ -4,23 +4,28 @@ import (
 	"backend/src/dependencies"
 	"backend/src/endpoints"
 	"flag"
-	"log"
+	"log/slog"
+	"os"
 )
 
 func main() {
 	configFile := flag.String("config", "config.yaml", "path to config")
 	flag.Parse()
 
-	_, err := dependencies.InitializeDependencies(*configFile)
+	deps, err := dependencies.CreateDependencies(*configFile)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("Failed to initialize dependencies", slog.Any("error", err))
+		os.Exit(1)
 	}
 
-	server, err := endpoints.InitializeServer()
+	server, err := endpoints.InitializeServer(*deps)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("Failed to initialize server", slog.Any("error", err))
+		os.Exit(1)
 	}
 
-	log.Println("Server started at :8080")
-	log.Fatal(server.ListenAndServe())
+	slog.Info("Starting server at :8080")
+	err = server.ListenAndServe()
+	slog.Error("Server stopped", slog.Any("error", err))
+	os.Exit(1)
 }
