@@ -1,4 +1,4 @@
-module backend
+module github.com/jolfzverb/pwstore
 
 go 1.22.2
 

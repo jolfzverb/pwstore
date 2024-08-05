@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 
-	"backend/internal/dependencies"
-	"backend/internal/endpoints"
+	"github.com/jolfzverb/pwstore/internal/dependencies"
+	"github.com/jolfzverb/pwstore/internal/endpoints"
 )
 
 type TestContext struct {

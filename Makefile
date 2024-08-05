@@ -2,7 +2,11 @@ SOURCES=$(shell find . -name "*.go")
 
 .PHONY: format
 format:
-	gofmt -w ${SOURCES}
+	golangci-lint run --fix
+
+.PHONY: check-format
+check-format:
+	golangci-lint run
 
 .PHONY: build
 build: pwstore_backend

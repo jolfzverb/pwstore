@@ -7,8 +7,8 @@ import (
 	_ "embed"
 	"fmt"
 
-	"backend/internal/api"
-	"backend/internal/dependencies"
+	"github.com/jolfzverb/pwstore/internal/api"
+	"github.com/jolfzverb/pwstore/internal/dependencies"
 )
 
 //go:embed queries/select_items.sql

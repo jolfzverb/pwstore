@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"os"
 
-	"backend/internal/dependencies"
-	"backend/internal/endpoints"
+	"github.com/jolfzverb/pwstore/internal/dependencies"
+	"github.com/jolfzverb/pwstore/internal/endpoints"
 )
 
 func main() {

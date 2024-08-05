@@ -135,6 +135,6 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(backend/internal)
+      - prefix(github.com/jolfzverb/pwstore)
   gofumpt:
-    module-path: backend/internal
+    module-path: github.com/jolfzverb/pwstore

@@ -11,10 +11,10 @@ import (
 
 	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 
-	"backend/internal/api"
-	"backend/internal/dependencies"
-	itemsget "backend/internal/views/items/get"
-	itemspost "backend/internal/views/items/post"
+	"github.com/jolfzverb/pwstore/internal/api"
+	"github.com/jolfzverb/pwstore/internal/dependencies"
+	itemsget "github.com/jolfzverb/pwstore/internal/views/items/get"
+	itemspost "github.com/jolfzverb/pwstore/internal/views/items/post"
 )
 
 var server *http.Server
