@@ -112,22 +112,19 @@ linters:
 
     # Finds slices that could potentially be pre-allocated.
     # Minimal performance win by the cost of less readability and more complex code.
-    # Not relevant to this repository (don't need performance optimization).
     - prealloc
+
     # Checks whether HTTP response body is closed successfully.
-    # Not relevant to this repository.
     - bodyclose
 
     # Check whether the function uses a non-inherited context.
-    # Not relevant to this repository.
     - contextcheck
 
     # Somewhat similar to `bodyclose` but for `database/sql` package.
-    # Not relevant to this reposirory.
     - rowserrcheck
     - sqlclosecheck
 
-    # Suggests to use `%w` for error-wrapping everywhere. IMO it is a bad practice leading to interface leaks.
+    # Suggests to use `%w` for error-wrapping everywhere.
     - errorlint
 
 linters-settings:
@@ -136,5 +133,6 @@ linters-settings:
       - standard
       - default
       - prefix(github.com/jolfzverb/pwstore)
+
   gofumpt:
     module-path: github.com/jolfzverb/pwstore
