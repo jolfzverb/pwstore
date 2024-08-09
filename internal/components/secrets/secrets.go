@@ -1,4 +1,4 @@
-package config
+package secrets
 
 import (
 	"fmt"
@@ -8,13 +8,9 @@ import (
 )
 
 type Model struct {
-	OpenIDSettings struct {
-		AuthorizationEndpoint string   `yaml:"authorizationEndpoint"`
-		ClientID              string   `yaml:"clientId"`
-		RedirectURI           string   `yaml:"redirectUri"`
-		ResponseType          string   `yaml:"responseType"`
-		Scope                 []string `yaml:"scope"`
-	} `yaml:"openIdSettings"`
+	Database struct {
+		ConnectionString string `yaml:"connectionString"`
+	} `yaml:"database"`
 }
 
 func GetConfig(filename string) (*Model, error) {

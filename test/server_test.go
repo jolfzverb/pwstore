@@ -7,10 +7,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/jolfzverb/pwstore/internal/components/secrets"
+
+	"github.com/jolfzverb/pwstore/internal/components/secrets"
+
 	"github.com/stretchr/testify/require"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 
 	"github.com/jolfzverb/pwstore/internal/components/config"
+	"github.com/jolfzverb/pwstore/internal/components/secrets"
 	pendingsessions "github.com/jolfzverb/pwstore/internal/components/storages/pending_sessions"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
 	"github.com/jolfzverb/pwstore/internal/endpoints"
@@ -33,7 +38,12 @@ func Prepare(t *testing.T) TestContext {
 		t.Errorf("failed to set up SQL mock: %v", err)
 	}
 
-	config, err := config.GetConfig("../configs/tests.yaml")
+	config, err := config.GetConfig("../configs/config_tests.yaml")
+	if err != nil {
+		t.Errorf("failed to read config file: %v", err)
+	}
+
+	secrets, err := secrets.GetConfig("../configs/secrets_tests.yaml")
 	if err != nil {
 		t.Errorf("failed to read config file: %v", err)
 	}
@@ -41,6 +51,7 @@ func Prepare(t *testing.T) TestContext {
 	deps := dependencies.Collection{
 		DB:                     testContext.db,
 		Config:                 config,
+		Secrets:                secrets,
 		PendingSessionsStorage: pendingsessions.CreateStorage(testContext.db),
 	}
 
