@@ -1,4 +1,4 @@
-SOURCES=$(shell find . -name "*.go")
+SOURCES=$(shell find internal cmd -name "*.go")
 
 .PHONY: format
 format:
