@@ -17,8 +17,7 @@ var selectNewSessionSQL string
 var insertPermanentSession string
 
 type newSession struct {
-	idempotencyToken string
-	sessionID        string
+	sessionID string
 }
 
 type ololoSession struct {
@@ -44,7 +43,7 @@ func querySession(ctx context.Context, db *sql.DB, sessionID string) (*newSessio
 }
 
 func insertSession(ctx context.Context, db *sql.DB, sessionID string) (*ololoSession, error) {
-	stmt, err := db.PrepareContext(ctx, selectNewSessionSQL)
+	stmt, err := db.PrepareContext(ctx, insertPermanentSession)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare statement: %w", err)
 	}
