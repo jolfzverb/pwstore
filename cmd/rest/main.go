@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	configFile := flag.String("config", "configs/config.yaml", "path to config")
+	configFile := flag.String("config", "configs/local.yaml", "path to config")
 	flag.Parse()
 
 	deps, err := dependencies.CreateDependencies(*configFile)

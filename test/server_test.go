@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -28,13 +27,18 @@ func Prepare(t *testing.T) TestContext {
 	var err error
 	testContext.db, testContext.pgMock, err = sqlmock.New()
 	if err != nil {
-		t.Errorf("failed to set up SQL mock")
+		t.Errorf("failed to set up SQL mock: %v", err)
+	}
+
+	config, err := dependencies.GetConfig("../configs/tests.yaml")
+	if err != nil {
+		t.Errorf("failed to read config file: %v", err)
 	}
 
 	testContext.handler = endpoints.GetHandler(
 		dependencies.Collection{
 			DB:     testContext.db,
-			Config: nil,
+			Config: config,
 		})
 	testContext.ctx = context.Background()
 	return testContext
@@ -44,47 +48,35 @@ func Finalize(c TestContext) {
 	c.db.Close()
 }
 
-func TestGetItems(t *testing.T) {
-	t.Run("simple test api response", func(t *testing.T) {
-		// set up mock
+func TestSessionNew(t *testing.T) {
+	t.Run("create new session", func(t *testing.T) {
 		c := Prepare(t)
 		defer Finalize(c)
 
-		c.pgMock.ExpectPrepare("SELECT id, name, price FROM items").ExpectQuery().
+		c.pgMock.ExpectPrepare("" +
+			"INSERT INTO sessions_tmp \\( idempotency_token \\) VALUES \\( \\$1 \\) ON CONFLICT \\(idempotency_token\\) " +
+			"DO UPDATE SET idempotency_token = \\$1 RETURNING idempotency_token, session_id, nonce, state").ExpectQuery().
 			WillReturnRows(
-				sqlmock.NewRows([]string{"id", "name", "price"}).
-					AddRow("id", "name", 1))
+				sqlmock.NewRows([]string{"idempotency_token", "session_id", "nonce", "state"}).
+					AddRow("idempotency_token", "session_id", "nonce", "state"))
 
-		request, _ := http.NewRequestWithContext(c.ctx, http.MethodGet, "/items", nil)
+		request, _ := http.NewRequestWithContext(c.ctx, http.MethodPost, "/session/new", nil)
+		request.Header.Add("X-Idempotency-Token", "idempotency_token")
 		response := httptest.NewRecorder()
 		c.handler.ServeHTTP(response, request)
 
-		expectedResponse := `{"items":[{"id":"id","name":"name","price":1}]}`
+		expectedResponse := `{
+				"session_id":"session_id",
+				"authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+				"response_type": "code",
+				"client_id": "Google OpenID client_id",
+				"scope": ["openid", "email"],
+				"redirect_uri": "https://localhost",
+				"state": "state",
+				"nonce": "nonce"
+			}`
 
 		require.EqualValues(t, 200, response.Code)
 		require.JSONEq(t, expectedResponse, response.Body.String())
-	})
-}
-
-func TestPostItems(t *testing.T) {
-	t.Run("simple test api response", func(t *testing.T) {
-		c := Prepare(t)
-
-		c.pgMock.ExpectPrepare("INSERT INTO items \\( name, price \\) VALUES \\( \\$1, \\$2 \\) RETURNING id, name, price").
-			ExpectQuery().WithArgs("name", float64(1)).
-			WillReturnRows(
-				sqlmock.NewRows([]string{"id", "name", "price"}).
-					AddRow("id", "name", 1))
-
-		requestBody := `{"name":"name","price":1}`
-		request, _ := http.NewRequestWithContext(c.ctx, http.MethodPost, "/items", strings.NewReader(requestBody))
-		response := httptest.NewRecorder()
-		c.handler.ServeHTTP(response, request)
-
-		expectedResponse := `{"id":"id","name":"name","price":1}`
-
-		require.EqualValues(t, 200, response.Code)
-		require.JSONEq(t, expectedResponse, response.Body.String())
-		Finalize(c)
 	})
 }

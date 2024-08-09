@@ -92,7 +92,7 @@ components:
           type: array
           items:
             type: string
-        redirect_url:
+        redirect_uri:
           type: string
         state:
           type: string
@@ -104,7 +104,7 @@ components:
         - response_type
         - client_id
         - scope
-        - redirect_url
+        - redirect_uri
         - state
         - nonce
 

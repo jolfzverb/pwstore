@@ -59,7 +59,11 @@ func insertSession(ctx context.Context, db *sql.DB, sessionID string) (*ololoSes
 	return &session, nil
 }
 
-func PostSessionSubmit(ctx context.Context, deps dependencies.Collection, request api.PostSessionSubmitRequestObject) (api.PostSessionSubmitResponseObject, error) {
+func PostSessionSubmit(
+	ctx context.Context,
+	deps dependencies.Collection,
+	request api.PostSessionSubmitRequestObject,
+) (api.PostSessionSubmitResponseObject, error) {
 	session, err := querySession(ctx, deps.DB, request.Body.SessionId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query session: %w", err)

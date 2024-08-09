@@ -20,7 +20,7 @@ type NewSessionResponse struct {
 	AuthorizationEndpoint string   `json:"authorization_endpoint"`
 	ClientId              string   `json:"client_id"`
 	Nonce                 string   `json:"nonce"`
-	RedirectUrl           string   `json:"redirect_url"`
+	RedirectUri           string   `json:"redirect_uri"`
 	ResponseType          string   `json:"response_type"`
 	Scope                 []string `json:"scope"`
 	SessionId             string   `json:"session_id"`

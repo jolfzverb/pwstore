@@ -1,0 +1,10 @@
+database:
+  connectionString: "user=postgres password=postgres dbname=postgres sslmode=disable"
+openIdSettings:
+  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth"
+  clientId: "Google OpenID client_id"
+  redirectUri: "https://localhost"
+  responseType: "code"
+  scope:
+    - openid
+    - email

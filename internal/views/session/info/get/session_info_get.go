@@ -18,7 +18,11 @@ type sessionInfo struct {
 	sessionID string
 }
 
-func GetSessionInfo(ctx context.Context, deps dependencies.Collection, request api.GetSessionInfoRequestObject) (api.GetSessionInfoResponseObject, error) {
+func GetSessionInfo(
+	ctx context.Context,
+	deps dependencies.Collection,
+	request api.GetSessionInfoRequestObject,
+) (api.GetSessionInfoResponseObject, error) {
 	stmt, err := deps.DB.PrepareContext(ctx, selectSessionByTokenSQL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare statement: %w", err)

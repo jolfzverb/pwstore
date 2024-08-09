@@ -32,6 +32,7 @@ linters:
     - gofumpt
     - goimports
     - gci
+    - lll
 
     # Allow or ban replace directives in go.mod
     # or force explanation for retract directives.

@@ -1,2 +1,0 @@
-database:
-  connectionString: "user=postgres password=5vrXetMwYFuNOfAfmUQCSatjwG dbname=postgres sslmode=disable"
