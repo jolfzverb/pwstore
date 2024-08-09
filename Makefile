@@ -22,6 +22,10 @@ run: build
 test: build
 	go test -v ./test
 
+.PHONY: clean
+clean:
+	rm -r pwstore_backend
+
 pwstore_backend: ${SOURCES}
 	go build -o pwstore_backend cmd/rest/main.go
 
