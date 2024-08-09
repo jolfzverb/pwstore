@@ -11,33 +11,65 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/oapi-codegen/runtime"
 	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 )
 
-// Item defines model for Item.
-type Item struct {
-	Id    string  `json:"id"`
-	Name  string  `json:"name"`
-	Price float32 `json:"price"`
+// NewSessionResponse defines model for NewSessionResponse.
+type NewSessionResponse struct {
+	AuthorizationEndpoint string   `json:"authorization_endpoint"`
+	ClientId              string   `json:"client_id"`
+	Nonce                 string   `json:"nonce"`
+	RedirectUrl           string   `json:"redirect_url"`
+	ResponseType          string   `json:"response_type"`
+	Scope                 []string `json:"scope"`
+	SessionId             string   `json:"session_id"`
+	State                 string   `json:"state"`
 }
 
-// NewItem defines model for NewItem.
-type NewItem struct {
-	Name  string  `json:"name"`
-	Price float32 `json:"price"`
+// SessionInfo defines model for SessionInfo.
+type SessionInfo = map[string]interface{}
+
+// SubmitSessionResponse defines model for SubmitSessionResponse.
+type SubmitSessionResponse struct {
+	Token string `json:"token"`
 }
 
-// PostItemsJSONRequestBody defines body for PostItems for application/json ContentType.
-type PostItemsJSONRequestBody = NewItem
+// GetSessionInfoParams defines parameters for GetSessionInfo.
+type GetSessionInfoParams struct {
+	Authorization string `json:"Authorization"`
+}
+
+// PostSessionNewParams defines parameters for PostSessionNew.
+type PostSessionNewParams struct {
+	XIdempotencyToken string `json:"X-Idempotency-Token"`
+}
+
+// PostSessionSubmitJSONBody defines parameters for PostSessionSubmit.
+type PostSessionSubmitJSONBody struct {
+	Code      string `json:"code"`
+	SessionId string `json:"session_id"`
+}
+
+// PostSessionSubmitParams defines parameters for PostSessionSubmit.
+type PostSessionSubmitParams struct {
+	XIdempotencyToken string `json:"X-Idempotency-Token"`
+}
+
+// PostSessionSubmitJSONRequestBody defines body for PostSessionSubmit for application/json ContentType.
+type PostSessionSubmitJSONRequestBody PostSessionSubmitJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get all items
-	// (GET /items)
-	GetItems(w http.ResponseWriter, r *http.Request)
-	// Add a new item
-	// (POST /items)
-	PostItems(w http.ResponseWriter, r *http.Request)
+	// Get session info
+	// (GET /session/info)
+	GetSessionInfo(w http.ResponseWriter, r *http.Request, params GetSessionInfoParams)
+	// Initiate new session
+	// (POST /session/new)
+	PostSessionNew(w http.ResponseWriter, r *http.Request, params PostSessionNewParams)
+	// Submit OAuth2 code
+	// (POST /session/submit)
+	PostSessionSubmit(w http.ResponseWriter, r *http.Request, params PostSessionSubmitParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -49,12 +81,42 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// GetItems operation middleware
-func (siw *ServerInterfaceWrapper) GetItems(w http.ResponseWriter, r *http.Request) {
+// GetSessionInfo operation middleware
+func (siw *ServerInterfaceWrapper) GetSessionInfo(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSessionInfoParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Authorization" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Authorization")]; found {
+		var Authorization string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Authorization", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Authorization", valueList[0], &Authorization, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Authorization", Err: err})
+			return
+		}
+
+		params.Authorization = Authorization
+
+	} else {
+		err := fmt.Errorf("Header parameter Authorization is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Authorization", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetItems(w, r)
+		siw.Handler.GetSessionInfo(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -64,12 +126,87 @@ func (siw *ServerInterfaceWrapper) GetItems(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
-// PostItems operation middleware
-func (siw *ServerInterfaceWrapper) PostItems(w http.ResponseWriter, r *http.Request) {
+// PostSessionNew operation middleware
+func (siw *ServerInterfaceWrapper) PostSessionNew(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostSessionNewParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Idempotency-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Idempotency-Token")]; found {
+		var XIdempotencyToken string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Idempotency-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Idempotency-Token", valueList[0], &XIdempotencyToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Idempotency-Token", Err: err})
+			return
+		}
+
+		params.XIdempotencyToken = XIdempotencyToken
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Idempotency-Token is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Idempotency-Token", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostItems(w, r)
+		siw.Handler.PostSessionNew(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// PostSessionSubmit operation middleware
+func (siw *ServerInterfaceWrapper) PostSessionSubmit(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostSessionSubmitParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Idempotency-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Idempotency-Token")]; found {
+		var XIdempotencyToken string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Idempotency-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Idempotency-Token", valueList[0], &XIdempotencyToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Idempotency-Token", Err: err})
+			return
+		}
+
+		params.XIdempotencyToken = XIdempotencyToken
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Idempotency-Token is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Idempotency-Token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostSessionSubmit(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -193,55 +330,100 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc("GET "+options.BaseURL+"/items", wrapper.GetItems)
-	m.HandleFunc("POST "+options.BaseURL+"/items", wrapper.PostItems)
+	m.HandleFunc("GET "+options.BaseURL+"/session/info", wrapper.GetSessionInfo)
+	m.HandleFunc("POST "+options.BaseURL+"/session/new", wrapper.PostSessionNew)
+	m.HandleFunc("POST "+options.BaseURL+"/session/submit", wrapper.PostSessionSubmit)
 
 	return m
 }
 
-type GetItemsRequestObject struct {
+type GetSessionInfoRequestObject struct {
+	Params GetSessionInfoParams
 }
 
-type GetItemsResponseObject interface {
-	VisitGetItemsResponse(w http.ResponseWriter) error
+type GetSessionInfoResponseObject interface {
+	VisitGetSessionInfoResponse(w http.ResponseWriter) error
 }
 
-type GetItems200JSONResponse struct {
-	Items []Item `json:"items"`
-}
+type GetSessionInfo200JSONResponse SessionInfo
 
-func (response GetItems200JSONResponse) VisitGetItemsResponse(w http.ResponseWriter) error {
+func (response GetSessionInfo200JSONResponse) VisitGetSessionInfoResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostItemsRequestObject struct {
-	Body *PostItemsJSONRequestBody
+type GetSessionInfo400Response struct {
 }
 
-type PostItemsResponseObject interface {
-	VisitPostItemsResponse(w http.ResponseWriter) error
+func (response GetSessionInfo400Response) VisitGetSessionInfoResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
 }
 
-type PostItems200JSONResponse Item
+type GetSessionInfo401Response struct {
+}
 
-func (response PostItems200JSONResponse) VisitPostItemsResponse(w http.ResponseWriter) error {
+func (response GetSessionInfo401Response) VisitGetSessionInfoResponse(w http.ResponseWriter) error {
+	w.WriteHeader(401)
+	return nil
+}
+
+type PostSessionNewRequestObject struct {
+	Params PostSessionNewParams
+}
+
+type PostSessionNewResponseObject interface {
+	VisitPostSessionNewResponse(w http.ResponseWriter) error
+}
+
+type PostSessionNew200JSONResponse NewSessionResponse
+
+func (response PostSessionNew200JSONResponse) VisitPostSessionNewResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type PostSessionSubmitRequestObject struct {
+	Params PostSessionSubmitParams
+	Body   *PostSessionSubmitJSONRequestBody
+}
+
+type PostSessionSubmitResponseObject interface {
+	VisitPostSessionSubmitResponse(w http.ResponseWriter) error
+}
+
+type PostSessionSubmit200JSONResponse SubmitSessionResponse
+
+func (response PostSessionSubmit200JSONResponse) VisitPostSessionSubmitResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostSessionSubmit400Response struct {
+}
+
+func (response PostSessionSubmit400Response) VisitPostSessionSubmitResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
 }
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Get all items
-	// (GET /items)
-	GetItems(ctx context.Context, request GetItemsRequestObject) (GetItemsResponseObject, error)
-	// Add a new item
-	// (POST /items)
-	PostItems(ctx context.Context, request PostItemsRequestObject) (PostItemsResponseObject, error)
+	// Get session info
+	// (GET /session/info)
+	GetSessionInfo(ctx context.Context, request GetSessionInfoRequestObject) (GetSessionInfoResponseObject, error)
+	// Initiate new session
+	// (POST /session/new)
+	PostSessionNew(ctx context.Context, request PostSessionNewRequestObject) (PostSessionNewResponseObject, error)
+	// Submit OAuth2 code
+	// (POST /session/submit)
+	PostSessionSubmit(ctx context.Context, request PostSessionSubmitRequestObject) (PostSessionSubmitResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -273,23 +455,25 @@ type strictHandler struct {
 	options     StrictHTTPServerOptions
 }
 
-// GetItems operation middleware
-func (sh *strictHandler) GetItems(w http.ResponseWriter, r *http.Request) {
-	var request GetItemsRequestObject
+// GetSessionInfo operation middleware
+func (sh *strictHandler) GetSessionInfo(w http.ResponseWriter, r *http.Request, params GetSessionInfoParams) {
+	var request GetSessionInfoRequestObject
+
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetItems(ctx, request.(GetItemsRequestObject))
+		return sh.ssi.GetSessionInfo(ctx, request.(GetSessionInfoRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetItems")
+		handler = middleware(handler, "GetSessionInfo")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetItemsResponseObject); ok {
-		if err := validResponse.VisitGetItemsResponse(w); err != nil {
+	} else if validResponse, ok := response.(GetSessionInfoResponseObject); ok {
+		if err := validResponse.VisitGetSessionInfoResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -297,11 +481,39 @@ func (sh *strictHandler) GetItems(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// PostItems operation middleware
-func (sh *strictHandler) PostItems(w http.ResponseWriter, r *http.Request) {
-	var request PostItemsRequestObject
+// PostSessionNew operation middleware
+func (sh *strictHandler) PostSessionNew(w http.ResponseWriter, r *http.Request, params PostSessionNewParams) {
+	var request PostSessionNewRequestObject
 
-	var body PostItemsJSONRequestBody
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostSessionNew(ctx, request.(PostSessionNewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostSessionNew")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostSessionNewResponseObject); ok {
+		if err := validResponse.VisitPostSessionNewResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostSessionSubmit operation middleware
+func (sh *strictHandler) PostSessionSubmit(w http.ResponseWriter, r *http.Request, params PostSessionSubmitParams) {
+	var request PostSessionSubmitRequestObject
+
+	request.Params = params
+
+	var body PostSessionSubmitJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
 		return
@@ -309,18 +521,18 @@ func (sh *strictHandler) PostItems(w http.ResponseWriter, r *http.Request) {
 	request.Body = &body
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.PostItems(ctx, request.(PostItemsRequestObject))
+		return sh.ssi.PostSessionSubmit(ctx, request.(PostSessionSubmitRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PostItems")
+		handler = middleware(handler, "PostSessionSubmit")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(PostItemsResponseObject); ok {
-		if err := validResponse.VisitPostItemsResponse(w); err != nil {
+	} else if validResponse, ok := response.(PostSessionSubmitResponseObject); ok {
+		if err := validResponse.VisitPostSessionSubmitResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

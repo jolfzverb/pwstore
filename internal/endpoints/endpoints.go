@@ -13,8 +13,9 @@ import (
 
 	"github.com/jolfzverb/pwstore/internal/api"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
-	itemsget "github.com/jolfzverb/pwstore/internal/views/items/get"
-	itemspost "github.com/jolfzverb/pwstore/internal/views/items/post"
+	sessioninfoget "github.com/jolfzverb/pwstore/internal/views/session/info/get"
+	sessionnewpost "github.com/jolfzverb/pwstore/internal/views/session/new/post"
+	sessionsubmitpost "github.com/jolfzverb/pwstore/internal/views/session/submit/post"
 )
 
 var server *http.Server
@@ -23,12 +24,16 @@ type Handlers struct {
 	deps dependencies.Collection
 }
 
-func (h Handlers) GetItems(ctx context.Context, request api.GetItemsRequestObject) (api.GetItemsResponseObject, error) {
-	return itemsget.GetItems(ctx, h.deps, request)
+func (h Handlers) GetSessionInfo(ctx context.Context, request api.GetSessionInfoRequestObject) (api.GetSessionInfoResponseObject, error) {
+	return sessioninfoget.GetSessionInfo(ctx, h.deps, request)
 }
 
-func (h Handlers) PostItems(ctx context.Context, request api.PostItemsRequestObject) (api.PostItemsResponseObject, error) {
-	return itemspost.PostItems(ctx, h.deps, request)
+func (h Handlers) PostSessionNew(ctx context.Context, request api.PostSessionNewRequestObject) (api.PostSessionNewResponseObject, error) {
+	return sessionnewpost.PostSessionNew(ctx, h.deps, request)
+}
+
+func (h Handlers) PostSessionSubmit(ctx context.Context, request api.PostSessionSubmitRequestObject) (api.PostSessionSubmitResponseObject, error) {
+	return sessionsubmitpost.PostSessionSubmit(ctx, h.deps, request)
 }
 
 func logRequestAndResponse(f strictnethttp.StrictHTTPHandlerFunc, operationID string) strictnethttp.StrictHTTPHandlerFunc {

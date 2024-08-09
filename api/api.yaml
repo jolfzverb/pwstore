@@ -20,32 +20,101 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NewSessionResponse'
-        '429':
-          description: Too many requests
+
+  /session/submit:
+    post:
+      summary: Submit OAuth2 code
+      parameters:
+        - name: X-Idempotency-Token
+          in: header
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                session_id:
+                  type: string
+              required:
+                - code
+                - session_id
+      responses:
+        '200':
+          description: Validated session response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitSessionResponse'
+        '400':
+          description: Bad request
+
+  /session/info:
+    get:
+      summary: Get session info
+      parameters:
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Session info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionInfo'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
 
 components:
   schemas:
-    Item:
+    NewSessionResponse:
       type: object
       properties:
-        id:
+        session_id:
           type: string
-        name:
+        authorization_endpoint:
           type: string
-        price:
-          type: number
+        response_type:
+          type: string
+        client_id:
+          type: string
+        scope:
+          type: array
+          items:
+            type: string
+        redirect_url:
+          type: string
+        state:
+          type: string
+        nonce:
+          type: string
       required:
-        - id
-        - name
-        - price
+        - session_id
+        - authorization_endpoint
+        - response_type
+        - client_id
+        - scope
+        - redirect_url
+        - state
+        - nonce
 
-    NewItem:
+    SubmitSessionResponse:
       type: object
       properties:
-        name:
+        token:
           type: string
-        price:
-          type: number
       required:
-        - name
-        - price
+        - token
+
+    SessionInfo:
+      type: object
