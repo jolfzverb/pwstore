@@ -1,33 +1,33 @@
 package dependencies
 
 import (
-	"database/sql"
+	"fmt"
 
-	// register postgres api.
-	_ "github.com/lib/pq"
+	"github.com/jolfzverb/pwstore/internal/components/config"
+	"github.com/jolfzverb/pwstore/internal/components/postgres"
+	pendingsessions "github.com/jolfzverb/pwstore/internal/components/storages/pending_sessions"
 )
 
 type Collection struct {
-	DB     *sql.DB
-	Config *ConfigType
+	DB                     *postgres.Postgres
+	Config                 *config.Model
+	PendingSessionsStorage *pendingsessions.Storage
 }
 
 func CreateDependencies(configFile string) (*Collection, error) {
 	var err error
 	var deps Collection
-	deps.Config, err = GetConfig(configFile)
+	deps.Config, err = config.GetConfig(configFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
-	deps.DB, err = sql.Open("postgres", deps.Config.Database.ConnectionString)
+	deps.DB, err = postgres.CreateDB(*deps.Config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create db: %w", err)
 	}
-	err = deps.DB.Ping()
-	if err != nil {
-		return nil, err
-	}
+
+	deps.PendingSessionsStorage = pendingsessions.CreateStorage(deps.DB)
 
 	return &deps, nil
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 
+	"github.com/jolfzverb/pwstore/internal/components/config"
+	pendingsessions "github.com/jolfzverb/pwstore/internal/components/storages/pending_sessions"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
 	"github.com/jolfzverb/pwstore/internal/endpoints"
 )
@@ -23,6 +25,7 @@ type TestContext struct {
 
 func Prepare(t *testing.T) TestContext {
 	t.Helper()
+
 	var testContext TestContext
 	var err error
 	testContext.db, testContext.pgMock, err = sqlmock.New()
@@ -30,16 +33,18 @@ func Prepare(t *testing.T) TestContext {
 		t.Errorf("failed to set up SQL mock: %v", err)
 	}
 
-	config, err := dependencies.GetConfig("../configs/tests.yaml")
+	config, err := config.GetConfig("../configs/tests.yaml")
 	if err != nil {
 		t.Errorf("failed to read config file: %v", err)
 	}
 
-	testContext.handler = endpoints.GetHandler(
-		dependencies.Collection{
-			DB:     testContext.db,
-			Config: config,
-		})
+	deps := dependencies.Collection{
+		DB:                     testContext.db,
+		Config:                 config,
+		PendingSessionsStorage: pendingsessions.CreateStorage(testContext.db),
+	}
+
+	testContext.handler = endpoints.GetHandler(deps)
 	testContext.ctx = context.Background()
 	return testContext
 }
@@ -53,9 +58,9 @@ func TestSessionNew(t *testing.T) {
 		c := Prepare(t)
 		defer Finalize(c)
 
-		c.pgMock.ExpectPrepare("" +
-			"INSERT INTO sessions_tmp \\( idempotency_token \\) VALUES \\( \\$1 \\) ON CONFLICT \\(idempotency_token\\) " +
-			"DO UPDATE SET idempotency_token = \\$1 RETURNING idempotency_token, session_id, nonce, state").ExpectQuery().
+		c.pgMock.ExpectPrepare("INSERT INTO pending_sessions \\( idempotency_token \\) VALUES \\( \\$1 \\) " +
+			"ON CONFLICT \\(idempotency_token\\) DO UPDATE SET idempotency_token = \\$1 RETURNING idempotency_token, " +
+			"session_id, nonce, state").ExpectQuery().
 			WillReturnRows(
 				sqlmock.NewRows([]string{"idempotency_token", "session_id", "nonce", "state"}).
 					AddRow("idempotency_token", "session_id", "nonce", "state"))

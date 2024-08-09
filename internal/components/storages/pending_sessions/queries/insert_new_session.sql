@@ -1,4 +1,4 @@
-INSERT INTO sessions_tmp (
+INSERT INTO pending_sessions (
     idempotency_token
 ) VALUES (
     $1
