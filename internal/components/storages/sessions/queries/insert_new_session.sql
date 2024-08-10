@@ -5,7 +5,7 @@ INSERT INTO sessions (
     id_token
 ) VALUES (
     $1, $2, $3, $4
-) ON CONFLICT (session_id) DO UPDATE SET idempotency_token = $1
+) ON CONFLICT (session_id) DO UPDATE SET session_id = $1
 RETURNING
     session_id,
     subject,
