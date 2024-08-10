@@ -37,19 +37,15 @@ type SubmitSessionResponse struct {
 	Token string `json:"token"`
 }
 
-// GetSessionInfoJSONBody defines parameters for GetSessionInfo.
-type GetSessionInfoJSONBody struct {
-	SessionId string `json:"session_id"`
-}
-
 // GetSessionInfoParams defines parameters for GetSessionInfo.
 type GetSessionInfoParams struct {
+	SessionId     string `form:"session_id" json:"session_id"`
 	Authorization string `json:"Authorization"`
 }
 
 // PostSessionNewParams defines parameters for PostSessionNew.
 type PostSessionNewParams struct {
-	XIdempotencyToken string `json:"X-Idempotency-Token"`
+	IdempotencyKey string `json:"Idempotency-Key"`
 }
 
 // PostSessionSubmitJSONBody defines parameters for PostSessionSubmit.
@@ -57,9 +53,6 @@ type PostSessionSubmitJSONBody struct {
 	Code      string `json:"code"`
 	SessionId string `json:"session_id"`
 }
-
-// GetSessionInfoJSONRequestBody defines body for GetSessionInfo for application/json ContentType.
-type GetSessionInfoJSONRequestBody GetSessionInfoJSONBody
 
 // PostSessionSubmitJSONRequestBody defines body for PostSessionSubmit for application/json ContentType.
 type PostSessionSubmitJSONRequestBody PostSessionSubmitJSONBody
@@ -94,6 +87,21 @@ func (siw *ServerInterfaceWrapper) GetSessionInfo(w http.ResponseWriter, r *http
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetSessionInfoParams
+
+	// ------------- Required query parameter "session_id" -------------
+
+	if paramValue := r.URL.Query().Get("session_id"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "session_id"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "session_id", r.URL.Query(), &params.SessionId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
 
 	headers := r.Header
 
@@ -142,26 +150,26 @@ func (siw *ServerInterfaceWrapper) PostSessionNew(w http.ResponseWriter, r *http
 
 	headers := r.Header
 
-	// ------------- Required header parameter "X-Idempotency-Token" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-Idempotency-Token")]; found {
-		var XIdempotencyToken string
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Idempotency-Token", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-Idempotency-Token", valueList[0], &XIdempotencyToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Idempotency-Token", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
 			return
 		}
 
-		params.XIdempotencyToken = XIdempotencyToken
+		params.IdempotencyKey = IdempotencyKey
 
 	} else {
-		err := fmt.Errorf("Header parameter X-Idempotency-Token is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Idempotency-Token", Err: err})
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
 		return
 	}
 
@@ -314,7 +322,6 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 type GetSessionInfoRequestObject struct {
 	Params GetSessionInfoParams
-	Body   *GetSessionInfoJSONRequestBody
 }
 
 type GetSessionInfoResponseObject interface {
@@ -435,13 +442,6 @@ func (sh *strictHandler) GetSessionInfo(w http.ResponseWriter, r *http.Request, 
 	var request GetSessionInfoRequestObject
 
 	request.Params = params
-
-	var body GetSessionInfoJSONRequestBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
-		return
-	}
-	request.Body = &body
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.GetSessionInfo(ctx, request.(GetSessionInfoRequestObject))

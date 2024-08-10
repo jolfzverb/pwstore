@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/jolfzverb/pwstore/internal/api"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
@@ -15,13 +14,21 @@ func GetSessionInfo(
 	deps dependencies.Collection,
 	request api.GetSessionInfoRequestObject,
 ) (api.GetSessionInfoResponseObject, error) {
-	splitToken := strings.Split(request.Params.Authorization, "Bearer ")
-	if len(splitToken) != 1 || len(splitToken[0]) == 0 {
+	if len(request.Params.Authorization) <= len("Bearer ") {
 		slog.Warn("Invalid token format")
 		return api.GetSessionInfo400Response{}, nil
 	}
+	token := request.Params.Authorization[len("Bearer "):]
+	if len(token) == 0 {
+		slog.Warn("Invalid token format")
+		return api.GetSessionInfo400Response{}, nil
+	}
+	if len(request.Params.SessionId) == 0 {
+		slog.Warn("Invalid session_id format")
+		return api.GetSessionInfo400Response{}, nil
+	}
 
-	session, err := deps.SessionsStorage.SelectSession(ctx, request.Body.SessionId, splitToken[0])
+	session, err := deps.SessionsStorage.SelectSession(ctx, request.Params.SessionId, token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session: %w", err)
 	}

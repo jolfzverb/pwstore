@@ -13,7 +13,7 @@ func PostSessionNew(
 	deps dependencies.Collection,
 	request api.PostSessionNewRequestObject,
 ) (api.PostSessionNewResponseObject, error) {
-	session, err := deps.PendingSessionsStorage.CreatePendingSession(ctx, request.Params.XIdempotencyToken)
+	session, err := deps.PendingSessionsStorage.CreatePendingSession(ctx, request.Params.IdempotencyKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}

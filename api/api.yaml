@@ -8,7 +8,7 @@ paths:
     post:
       summary: Initiate new session
       parameters:
-        - name: X-Idempotency-Token
+        - name: Idempotency-Key
           in: header
           schema:
             type: string
@@ -57,17 +57,11 @@ paths:
           schema:
             type: string
           required: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                session_id:
-                  type: string
-              required:
-                - session_id
+        - name: session_id
+          in: query
+          schema:
+            type: string
+          required: true
       responses:
         '200':
           description: Session info

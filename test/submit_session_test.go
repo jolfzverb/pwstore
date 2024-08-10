@@ -2,14 +2,10 @@ package tests
 
 import (
 	"fmt"
-	"io"
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 func GetToken() string {
@@ -28,7 +24,7 @@ func GetToken() string {
 			"email_verified":true,
 			"nonce":"nonce"
 		}
-		Use https://jwt.io/ to generate token with above header and payload
+		Use https://jwt.io/ to generate token with header and payload above
 	*/
 	return `eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiJzdWJqZWN0Iiw` +
 		`iYXVkIjoiY2xpZW50X2lkIiwiZXhwIjoxMjE0NzQ4MzY0NywiaWF0IjoxNzIzMjE3MzMyLCJhenAiOiJjbGllbnRfaWQiLCJlbWFpbCI6Im5` +
@@ -36,53 +32,39 @@ func GetToken() string {
 		`DMSXSBBeSj1Kg`
 }
 
-func GetTokenResponse() string {
-	return `{"id_token":"` + GetToken() + `","scope":[]}`
+func TokenResponse() string {
+	return fmt.Sprintf(`{
+			"id_token":"%s",
+			"scope":[]
+		}`, GetToken())
+}
+
+func TokenRequest() string {
+	return "client_id=client_id&" +
+		"client_secret=client_secret&" +
+		"code=auth_code&" +
+		"grant_type=authorization_code&" +
+		"redirect_uri=https%3A%2F%2Flocalhost"
 }
 
 func TestSubmitSession(t *testing.T) {
 	c := Prepare(t)
 	defer Finalize(c)
 	t.Run("submit session", func(t *testing.T) {
-		c.pgMock.ExpectPrepare("SELECT idempotency_token, session_id, nonce, state FROM sessions_tmp " +
-			"WHERE session_id=\\$1").ExpectQuery().
-			WillReturnRows(
-				sqlmock.NewRows([]string{"idempotency_token", "session_id", "nonce", "state"}).
-					AddRow("idempotency_token", "session_id", "nonce", "state"))
+		// should create separate mocks for each request for each collection,
+		// but this works for now
+		c.PGMock(PGKeys{"idempotency_token", "session_id", "nonce", "state"},
+			PGValues{{"idempotency_token", "session_id", "nonce", "state"}})
+		c.PGMock(PGKeys{"session_id", "subject", "email", "id_token", "token"},
+			PGValues{{"session_id", "subject", "noreply@company.com", GetToken(), "token"}})
 
-		c.pgMock.ExpectPrepare("INSERT INTO sessions \\( session_id, subject, email, id_token \\) " +
-			"VALUES \\( \\$1, \\$2, \\$3, \\$4 \\) ON CONFLICT \\(session_id\\) DO UPDATE " +
-			"SET idempotency_token = \\$1 RETURNING session_id, subject, email, id_token, token").ExpectQuery().
-			WillReturnRows(
-				sqlmock.NewRows([]string{"session_id", "subject", "email", "id_token", "token"}).
-					AddRow("session_id", "subject", "noreply@company.com", GetToken(), "token"))
-
-		c.googleOpenIDMock.Add("/token", func(r *http.Request) (*http.Response, error) {
-			bytes, err := io.ReadAll(r.Body)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read request body")
-			}
-			require.Equal(t, string(bytes), `client_id=client_id&client_secret=client_secret&code=auth_code&`+
-				`grant_type=authorization_code&redirect_uri=https%3A%2F%2Flocalhost`)
-			body := strings.NewReader(GetTokenResponse())
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(body),
-				Header: http.Header{
-					"Content-Type": []string{"application/json"},
-				},
-			}, nil
-		})
+		//nolint:bodyclose
+		c.googleOpenIDMock.Add("/token", c.MockHelper(TokenRequest(), TokenResponse(), http.StatusOK))
 
 		body := `{"code":"auth_code"}`
-		request, _ := http.NewRequestWithContext(c.ctx, http.MethodPost, "/session/submit", strings.NewReader(body))
-		request.Header.Add("X-Idempotency-Token", "idempotency_token")
-		response := httptest.NewRecorder()
-		c.handler.ServeHTTP(response, request)
+		code, response := c.MakeRequest(http.MethodPost, "/session/submit", &body, nil)
 
-		expectedResponse := `{"token":"token"}`
-
-		require.EqualValues(t, 200, response.Code)
-		require.JSONEq(t, expectedResponse, response.Body.String())
+		require.EqualValues(t, 200, code)
+		require.JSONEq(t, `{"token":"token"}`, response)
 	})
 }
