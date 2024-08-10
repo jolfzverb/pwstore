@@ -2,61 +2,23 @@ package sessionsubmitpost
 
 import (
 	"context"
-	"database/sql"
-	_ "embed"
 	"fmt"
+	"strings"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/jolfzverb/pwstore/internal/api"
+	googleopenid "github.com/jolfzverb/pwstore/internal/clients/google_open_id"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
 )
 
-//go:embed queries/select_new_session.sql
-var selectNewSessionSQL string
-
-//go:embed queries/insert_permanent_session.sql
-var insertPermanentSession string
-
-type newSession struct {
-	sessionID string
-}
-
-type ololoSession struct {
-	token     string
-	sessionID string
-}
-
-func querySession(ctx context.Context, db *sql.DB, sessionID string) (*newSession, error) {
-	stmt, err := db.PrepareContext(ctx, selectNewSessionSQL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
-	}
-	defer stmt.Close()
-
-	session := newSession{
-		sessionID: sessionID,
-	}
-	err = stmt.QueryRowContext(ctx, sessionID).Scan(&session.sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute statement: %w", err)
-	}
-	return &session, nil
-}
-
-func insertSession(ctx context.Context, db *sql.DB, sessionID string) (*ololoSession, error) {
-	stmt, err := db.PrepareContext(ctx, insertPermanentSession)
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
-	}
-	defer stmt.Close()
-
-	session := ololoSession{
-		sessionID: sessionID,
-	}
-	err = stmt.QueryRowContext(ctx, sessionID).Scan(&session.token)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute statement: %w", err)
-	}
-	return &session, nil
+type GoogleOpenIDClaims struct {
+	AuthorizedPresenter string `json:"azp"`
+	Email               string `json:"email"`
+	EmailVerified       bool   `json:"email_verified"` //nolint:tagliatelle
+	Nonce               string `json:"nonce"`
+	jwt.RegisteredClaims
 }
 
 func PostSessionSubmit(
@@ -64,19 +26,56 @@ func PostSessionSubmit(
 	deps dependencies.Collection,
 	request api.PostSessionSubmitRequestObject,
 ) (api.PostSessionSubmitResponseObject, error) {
-	session, err := querySession(ctx, deps.DB, request.Body.SessionId)
+	session, err := deps.PendingSessionsStorage.FetchPendingSession(ctx, request.Body.SessionId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query session: %w", err)
 	}
 
-	// query google api for id_token
-
-	newSession, err := insertSession(ctx, deps.DB, session.sessionID)
+	tokenRequest := googleopenid.PostTokenFormdataRequestBody{
+		Code:         request.Body.Code,
+		ClientId:     deps.Config.OpenIDSettings.ClientID,
+		ClientSecret: deps.Secrets.OpenIDSettings.ClientSecret,
+		RedirectUri:  deps.Config.OpenIDSettings.RedirectURI,
+		GrantType:    deps.Config.OpenIDSettings.GrantType,
+	}
+	tokenResponse, err := deps.GoogleOpenIDClient.PostTokenWithFormdataBodyWithResponse(ctx, tokenRequest)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query session: %w", err)
+		return nil, fmt.Errorf("failed to request token: %w", err)
+	}
+	idToken := tokenResponse.JSON200.IdToken
+
+	parsedToken, _, err := jwt.NewParser().ParseUnverified(idToken, &GoogleOpenIDClaims{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token: %w", err)
+	}
+	tokenClaims, ok := parsedToken.Claims.(*GoogleOpenIDClaims)
+	if !ok {
+		return nil, fmt.Errorf("failed to extract claims")
+	}
+
+	if tokenClaims.Issuer != deps.Config.OpenIDSettings.Issuer {
+		return nil, fmt.Errorf("token issuer is invalid: %s", tokenClaims.Issuer)
+	}
+	if len(tokenClaims.Audience) != 1 || tokenClaims.Audience[0] != deps.Config.OpenIDSettings.ClientID {
+		return nil, fmt.Errorf("token audience is invalid: %s", strings.Join(tokenClaims.Audience, ","))
+	}
+	if tokenClaims.ExpiresAt.Before(time.Now()) {
+		return nil, fmt.Errorf("token already expired: %s", tokenClaims.ExpiresAt.String())
+	}
+	if tokenClaims.Nonce != session.Nonce {
+		return nil, fmt.Errorf("token nonce does not match: %s != %s", tokenClaims.Nonce, session.Nonce)
+	}
+	if !tokenClaims.EmailVerified {
+		return nil, fmt.Errorf("email is not verified")
+	}
+
+	newSession, err := deps.SessionsStorage.InsertSession(
+		ctx, session.SessionID, tokenClaims.Subject, tokenClaims.Email, idToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
 	return api.PostSessionSubmit200JSONResponse{
-		Token: newSession.token,
+		Token: newSession.Token,
 	}, nil
 }

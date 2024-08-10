@@ -24,12 +24,6 @@ paths:
   /session/submit:
     post:
       summary: Submit OAuth2 code
-      parameters:
-        - name: X-Idempotency-Token
-          in: header
-          schema:
-            type: string
-          required: true
       requestBody:
         required: true
         content:
@@ -63,6 +57,17 @@ paths:
           schema:
             type: string
           required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id:
+                  type: string
+              required:
+                - session_id
       responses:
         '200':
           description: Session info
@@ -118,3 +123,8 @@ components:
 
     SessionInfo:
       type: object
+      properties:
+        email:
+          type: string
+      required:
+        - email

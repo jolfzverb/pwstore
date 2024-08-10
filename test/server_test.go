@@ -7,10 +7,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/jolfzverb/pwstore/internal/components/secrets"
-
-	"github.com/jolfzverb/pwstore/internal/components/secrets"
-
 	"github.com/stretchr/testify/require"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 

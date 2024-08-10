@@ -14,7 +14,14 @@ type Model struct {
 		RedirectURI           string   `yaml:"redirectUri"`
 		ResponseType          string   `yaml:"responseType"`
 		Scope                 []string `yaml:"scope"`
+		GrantType             string   `yaml:"grantType"`
+		Issuer                string   `yaml:"issuer"`
 	} `yaml:"openIdSettings"`
+	Clients struct {
+		GoogleOpenID struct {
+			Host string `yaml:"host"`
+		} `yaml:"googleOpenId"`
+	} `yaml:"clients"`
 }
 
 func GetConfig(filename string) (*Model, error) {

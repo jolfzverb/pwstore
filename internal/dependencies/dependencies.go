@@ -3,11 +3,12 @@ package dependencies
 import (
 	"fmt"
 
-
+	googleopenid "github.com/jolfzverb/pwstore/internal/clients/google_open_id"
 	"github.com/jolfzverb/pwstore/internal/components/config"
 	"github.com/jolfzverb/pwstore/internal/components/postgres"
 	"github.com/jolfzverb/pwstore/internal/components/secrets"
 	pendingsessions "github.com/jolfzverb/pwstore/internal/components/storages/pending_sessions"
+	"github.com/jolfzverb/pwstore/internal/components/storages/sessions"
 )
 
 type Collection struct {
@@ -15,6 +16,8 @@ type Collection struct {
 	Config                 *config.Model
 	Secrets                *secrets.Model
 	PendingSessionsStorage *pendingsessions.Storage
+	SessionsStorage        *sessions.Storage
+	GoogleOpenIDClient     *googleopenid.ClientWithResponses
 }
 
 func CreateDependencies(configFile string, secretsFile string) (*Collection, error) {
@@ -36,6 +39,12 @@ func CreateDependencies(configFile string, secretsFile string) (*Collection, err
 	}
 
 	deps.PendingSessionsStorage = pendingsessions.CreateStorage(deps.DB)
+	deps.SessionsStorage = sessions.CreateStorage(deps.DB)
+
+	deps.GoogleOpenIDClient, err = googleopenid.NewClientWithResponses(deps.Config.Clients.GoogleOpenID.Host)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Google OpenID client: %w", err)
+	}
 
 	return &deps, nil
 }

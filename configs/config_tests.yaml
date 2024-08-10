@@ -6,3 +6,6 @@ openIdSettings:
   scope:
     - openid
     - email
+clients:
+  googleOpenId:
+    host: "https://oauth2.googleapis.com/"

@@ -1,0 +1,5 @@
+package: googleopenid
+generate:
+  models: true
+  client: true
+output: internal/clients/google_open_id/google_open_id.gen.go

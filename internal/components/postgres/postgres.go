@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 
-
 	// register postgres api.
 	_ "github.com/lib/pq"
 

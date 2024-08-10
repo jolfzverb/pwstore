@@ -11,6 +11,9 @@ type Model struct {
 	Database struct {
 		ConnectionString string `yaml:"connectionString"`
 	} `yaml:"database"`
+	OpenIDSettings struct {
+		ClientSecret string `yaml:"clientSecret"`
+	} `yaml:"openIdSettings"`
 }
 
 func GetConfig(filename string) (*Model, error) {

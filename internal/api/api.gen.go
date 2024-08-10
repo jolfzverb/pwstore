@@ -28,11 +28,18 @@ type NewSessionResponse struct {
 }
 
 // SessionInfo defines model for SessionInfo.
-type SessionInfo = map[string]interface{}
+type SessionInfo struct {
+	Email string `json:"email"`
+}
 
 // SubmitSessionResponse defines model for SubmitSessionResponse.
 type SubmitSessionResponse struct {
 	Token string `json:"token"`
+}
+
+// GetSessionInfoJSONBody defines parameters for GetSessionInfo.
+type GetSessionInfoJSONBody struct {
+	SessionId string `json:"session_id"`
 }
 
 // GetSessionInfoParams defines parameters for GetSessionInfo.
@@ -51,10 +58,8 @@ type PostSessionSubmitJSONBody struct {
 	SessionId string `json:"session_id"`
 }
 
-// PostSessionSubmitParams defines parameters for PostSessionSubmit.
-type PostSessionSubmitParams struct {
-	XIdempotencyToken string `json:"X-Idempotency-Token"`
-}
+// GetSessionInfoJSONRequestBody defines body for GetSessionInfo for application/json ContentType.
+type GetSessionInfoJSONRequestBody GetSessionInfoJSONBody
 
 // PostSessionSubmitJSONRequestBody defines body for PostSessionSubmit for application/json ContentType.
 type PostSessionSubmitJSONRequestBody PostSessionSubmitJSONBody
@@ -69,7 +74,7 @@ type ServerInterface interface {
 	PostSessionNew(w http.ResponseWriter, r *http.Request, params PostSessionNewParams)
 	// Submit OAuth2 code
 	// (POST /session/submit)
-	PostSessionSubmit(w http.ResponseWriter, r *http.Request, params PostSessionSubmitParams)
+	PostSessionSubmit(w http.ResponseWriter, r *http.Request)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -175,38 +180,8 @@ func (siw *ServerInterfaceWrapper) PostSessionNew(w http.ResponseWriter, r *http
 func (siw *ServerInterfaceWrapper) PostSessionSubmit(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var err error
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params PostSessionSubmitParams
-
-	headers := r.Header
-
-	// ------------- Required header parameter "X-Idempotency-Token" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-Idempotency-Token")]; found {
-		var XIdempotencyToken string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Idempotency-Token", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "X-Idempotency-Token", valueList[0], &XIdempotencyToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Idempotency-Token", Err: err})
-			return
-		}
-
-		params.XIdempotencyToken = XIdempotencyToken
-
-	} else {
-		err := fmt.Errorf("Header parameter X-Idempotency-Token is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Idempotency-Token", Err: err})
-		return
-	}
-
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostSessionSubmit(w, r, params)
+		siw.Handler.PostSessionSubmit(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -339,6 +314,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 type GetSessionInfoRequestObject struct {
 	Params GetSessionInfoParams
+	Body   *GetSessionInfoJSONRequestBody
 }
 
 type GetSessionInfoResponseObject interface {
@@ -388,8 +364,7 @@ func (response PostSessionNew200JSONResponse) VisitPostSessionNewResponse(w http
 }
 
 type PostSessionSubmitRequestObject struct {
-	Params PostSessionSubmitParams
-	Body   *PostSessionSubmitJSONRequestBody
+	Body *PostSessionSubmitJSONRequestBody
 }
 
 type PostSessionSubmitResponseObject interface {
@@ -461,6 +436,13 @@ func (sh *strictHandler) GetSessionInfo(w http.ResponseWriter, r *http.Request, 
 
 	request.Params = params
 
+	var body GetSessionInfoJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.GetSessionInfo(ctx, request.(GetSessionInfoRequestObject))
 	}
@@ -508,10 +490,8 @@ func (sh *strictHandler) PostSessionNew(w http.ResponseWriter, r *http.Request, 
 }
 
 // PostSessionSubmit operation middleware
-func (sh *strictHandler) PostSessionSubmit(w http.ResponseWriter, r *http.Request, params PostSessionSubmitParams) {
+func (sh *strictHandler) PostSessionSubmit(w http.ResponseWriter, r *http.Request) {
 	var request PostSessionSubmitRequestObject
-
-	request.Params = params
 
 	var body PostSessionSubmitJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
