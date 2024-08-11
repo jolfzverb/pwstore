@@ -65,7 +65,7 @@ type ServerInterface interface {
 	// Initiate new session
 	// (POST /session/new)
 	PostSessionNew(w http.ResponseWriter, r *http.Request, params PostSessionNewParams)
-	// Submit OAuth2 code
+	// Submit authorization code
 	// (POST /session/submit)
 	PostSessionSubmit(w http.ResponseWriter, r *http.Request)
 }
@@ -403,7 +403,7 @@ type StrictServerInterface interface {
 	// Initiate new session
 	// (POST /session/new)
 	PostSessionNew(ctx context.Context, request PostSessionNewRequestObject) (PostSessionNewResponseObject, error)
-	// Submit OAuth2 code
+	// Submit authorization code
 	// (POST /session/submit)
 	PostSessionSubmit(ctx context.Context, request PostSessionSubmitRequestObject) (PostSessionSubmitResponseObject, error)
 }

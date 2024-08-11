@@ -6,7 +6,7 @@ info:
 paths:
   /token:
     post:
-      summary: Initiate new session
+      summary: Token endpoint
       requestBody:
         required: true
         content:
@@ -32,7 +32,7 @@ paths:
                 - grant_type
       responses:
         '200':
-          description: New session response
+          description: Token response
           content:
             application/json:
               schema:
