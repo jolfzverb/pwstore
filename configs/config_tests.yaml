@@ -1,0 +1,13 @@
+openIdSettings:
+  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth"
+  clientId: "client_id"
+  redirectUri: "https://localhost"
+  responseType: "code"
+  scope:
+    - openid
+    - email
+  grantType: "authorization_code"
+  issuer: "https://accounts.google.com"
+clients:
+  googleOpenId:
+    host: "https://oauth2.googleapis.com/"

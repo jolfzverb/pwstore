@@ -10,10 +10,11 @@ import (
 )
 
 func main() {
-	configFile := flag.String("config", "configs/config.yaml", "path to config")
+	configFile := flag.String("config", "configs/config_local.yaml", "path to config")
+	secretsFile := flag.String("secrets", "configs/secrets_local.yaml", "path to secrets")
 	flag.Parse()
 
-	deps, err := dependencies.CreateDependencies(*configFile)
+	deps, err := dependencies.CreateDependencies(*configFile, *secretsFile)
 	if err != nil {
 		slog.Error("Failed to initialize dependencies", slog.Any("error", err))
 		os.Exit(1)
