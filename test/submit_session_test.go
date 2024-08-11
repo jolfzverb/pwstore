@@ -34,8 +34,7 @@ func GetToken() string {
 
 func TokenResponse() string {
 	return fmt.Sprintf(`{
-			"id_token":"%s",
-			"scope":[]
+			"id_token":"%s"
 		}`, GetToken())
 }
 

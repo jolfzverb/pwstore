@@ -47,6 +47,10 @@ paths:
                 $ref: '#/components/schemas/SubmitSessionResponse'
         '400':
           description: Bad request
+        '401':
+          description: Not authorized
+        '404':
+          description: Not found
 
   /session/info:
     get:

@@ -3,6 +3,6 @@ SELECT
     session_id,
     nonce,
     state
-FROM sessions_tmp
+FROM pending_sessions
 WHERE
     session_id=$1;

@@ -15,13 +15,19 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// TokenErrorResponse defines model for TokenErrorResponse.
+type TokenErrorResponse struct {
+	Error            string  `json:"error"`
+	ErrorDescription *string `json:"error_description,omitempty"`
+}
+
 // TokenResponse defines model for TokenResponse.
 type TokenResponse struct {
 	AccessToken  *string  `json:"access_token,omitempty"`
 	ExpiresIn    *float32 `json:"expires_in,omitempty"`
 	IdToken      string   `json:"id_token"`
 	RefreshToken *string  `json:"refresh_token,omitempty"`
-	Scope        []string `json:"scope"`
+	Scope        *string  `json:"scope,omitempty"`
 	TokenType    *string  `json:"token_type,omitempty"`
 }
 
@@ -233,6 +239,7 @@ type PostTokenResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *TokenResponse
+	JSON400      *TokenErrorResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -288,6 +295,13 @@ func ParsePostTokenResponse(rsp *http.Response) (*PostTokenResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest TokenErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	}
 

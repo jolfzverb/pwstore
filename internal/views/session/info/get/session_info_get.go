@@ -2,10 +2,12 @@ package sessioninfoget
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/jolfzverb/pwstore/internal/api"
+	"github.com/jolfzverb/pwstore/internal/components/storages/sessions"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
 )
 
@@ -29,6 +31,10 @@ func GetSessionInfo(
 	}
 
 	session, err := deps.SessionsStorage.SelectSession(ctx, request.Params.SessionId, token)
+	if errors.Is(err, sessions.ErrSessionNotFound) {
+		slog.Warn(fmt.Sprintf("Session not found for (session_id, token): %v", err))
+		return api.GetSessionInfo401Response{}, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session: %w", err)
 	}

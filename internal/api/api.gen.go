@@ -395,6 +395,22 @@ func (response PostSessionSubmit400Response) VisitPostSessionSubmitResponse(w ht
 	return nil
 }
 
+type PostSessionSubmit401Response struct {
+}
+
+func (response PostSessionSubmit401Response) VisitPostSessionSubmitResponse(w http.ResponseWriter) error {
+	w.WriteHeader(401)
+	return nil
+}
+
+type PostSessionSubmit404Response struct {
+}
+
+func (response PostSessionSubmit404Response) VisitPostSessionSubmitResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get session info

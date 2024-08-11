@@ -2,7 +2,9 @@ package sessionsubmitpost
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 
 	"github.com/jolfzverb/pwstore/internal/api"
 	googleopenid "github.com/jolfzverb/pwstore/internal/clients/google_open_id"
+	pendingsessions "github.com/jolfzverb/pwstore/internal/components/storages/pending_sessions"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
 )
 
@@ -27,6 +30,9 @@ func PostSessionSubmit(
 	request api.PostSessionSubmitRequestObject,
 ) (api.PostSessionSubmitResponseObject, error) {
 	session, err := deps.PendingSessionsStorage.FetchPendingSession(ctx, request.Body.SessionId)
+	if errors.Is(err, pendingsessions.ErrSessionNotFound) {
+		return api.PostSessionSubmit404Response{}, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to query session: %w", err)
 	}
@@ -42,6 +48,22 @@ func PostSessionSubmit(
 	if err != nil {
 		return nil, fmt.Errorf("failed to request token: %w", err)
 	}
+	slog.Debug("Finished request to /token", slog.String("body", string(tokenResponse.Body)))
+
+	if tokenResponse.JSON400 != nil {
+		errorDescription := ""
+		if tokenResponse.JSON400.ErrorDescription != nil {
+			errorDescription = *tokenResponse.JSON400.ErrorDescription
+		}
+		slog.Warn(fmt.Sprintf("Error on getting token %s: %s", tokenResponse.JSON400.Error, errorDescription))
+		return api.PostSessionSubmit401Response{}, nil
+	}
+
+	if tokenResponse.JSON200 == nil {
+		return nil, fmt.Errorf("token response is not OK: %d!=200, body=%s",
+			tokenResponse.StatusCode(), string(tokenResponse.Body))
+	}
+
 	idToken := tokenResponse.JSON200.IdToken
 
 	parsedToken, _, err := jwt.NewParser().ParseUnverified(idToken, &GoogleOpenIDClaims{})

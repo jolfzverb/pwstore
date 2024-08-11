@@ -37,6 +37,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenErrorResponse'
 
 components:
   schemas:
@@ -50,13 +56,20 @@ components:
         id_token:
           type: string
         scope:
-          type: array
-          items:
-            type: string
+          type: string
         token_type:
           type: string
         refresh_token:
           type: string
       required:
         - id_token
-        - scope
+
+    TokenErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        error_description:
+          type: string
+      required:
+        - error

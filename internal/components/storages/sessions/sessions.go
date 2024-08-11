@@ -3,6 +3,7 @@ package sessions
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 
 	"github.com/jolfzverb/pwstore/internal/components/postgres"
@@ -15,6 +16,8 @@ type Session struct {
 	IDToken   string
 	Token     string
 }
+
+var ErrSessionNotFound = errors.New("session not found")
 
 //go:embed queries/insert_new_session.sql
 var insertNewSessionSQL string
@@ -69,16 +72,30 @@ func (s Storage) SelectSession(ctx context.Context, sessionID string, token stri
 	}
 	defer stmt.Close()
 
-	session := Session{}
-	err = stmt.QueryRowContext(ctx, sessionID, token).Scan(
-		&session.SessionID,
-		&session.Subject,
-		&session.Email,
-		&session.IDToken,
-		&session.Token)
+	sessions := make([]Session, 0, 1)
+	rows, err := stmt.QueryContext(ctx, sessionID, token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute statement: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+	for rows.Next() {
+		var session Session
+		err = rows.Scan(&session.SessionID, &session.Subject, &session.Email, &session.IDToken, &session.Token)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse session row: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to scan sessions: %w", err)
 	}
 
-	return &session, nil
+	if len(sessions) == 0 {
+		return nil, ErrSessionNotFound
+	}
+
+	if len(sessions) > 1 {
+		return nil, fmt.Errorf("multiple sessions found")
+	}
+
+	return &sessions[0], nil
 }

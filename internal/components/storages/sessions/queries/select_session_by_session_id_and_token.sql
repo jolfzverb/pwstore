@@ -1,5 +1,9 @@
 SELECT
-    session_id
+    session_id,
+    subject,
+    email,
+    id_token,
+    token
 FROM sessions
 WHERE
-    token=$1;
+    session_id=$1 AND token=$2;
