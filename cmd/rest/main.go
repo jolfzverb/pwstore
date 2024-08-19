@@ -20,7 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	server, err := endpoints.InitializeServer(*deps)
+	server, err := endpoints.InitializeServer(deps)
 	if err != nil {
 		slog.Error("Failed to initialize server", slog.Any("error", err))
 		os.Exit(1)

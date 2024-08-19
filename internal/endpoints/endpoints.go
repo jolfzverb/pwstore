@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -12,37 +13,34 @@ import (
 	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 
 	"github.com/jolfzverb/pwstore/internal/api"
+	"github.com/jolfzverb/pwstore/internal/contextkey"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
 	sessioninfoget "github.com/jolfzverb/pwstore/internal/views/session/info/get"
 	sessionnewpost "github.com/jolfzverb/pwstore/internal/views/session/new/post"
 	sessionsubmitpost "github.com/jolfzverb/pwstore/internal/views/session/submit/post"
 )
 
-var server *http.Server
-
-type Handlers struct {
-	deps dependencies.Collection
-}
+type Handlers struct{}
 
 func (h Handlers) GetSessionInfo(
 	ctx context.Context,
 	request api.GetSessionInfoRequestObject,
 ) (api.GetSessionInfoResponseObject, error) {
-	return sessioninfoget.GetSessionInfo(ctx, h.deps, request)
+	return sessioninfoget.GetSessionInfo(ctx, request)
 }
 
 func (h Handlers) PostSessionNew(
 	ctx context.Context,
 	request api.PostSessionNewRequestObject,
 ) (api.PostSessionNewResponseObject, error) {
-	return sessionnewpost.PostSessionNew(ctx, h.deps, request)
+	return sessionnewpost.PostSessionNew(ctx, request)
 }
 
 func (h Handlers) PostSessionSubmit(
 	ctx context.Context,
 	request api.PostSessionSubmitRequestObject,
 ) (api.PostSessionSubmitResponseObject, error) {
-	return sessionsubmitpost.PostSessionSubmit(ctx, h.deps, request)
+	return sessionsubmitpost.PostSessionSubmit(ctx, request)
 }
 
 func logRequestAndResponse(
@@ -93,22 +91,23 @@ func logRequestAndResponse(
 	return ff
 }
 
-func GetHandler(deps dependencies.Collection) http.Handler {
-	handlers := Handlers{
-		deps: deps,
-	}
+func GetHandler() http.Handler {
+	handlers := Handlers{}
 	return api.Handler(
 		api.NewStrictHandler(handlers, []api.StrictMiddlewareFunc{logRequestAndResponse}),
 	)
 }
 
-func InitializeServer(deps dependencies.Collection) (*http.Server, error) {
-	h := GetHandler(deps)
+func InitializeServer(deps *dependencies.Collection) (*http.Server, error) {
+	h := GetHandler()
 
-	server = &http.Server{
+	server := http.Server{
 		Addr:              ":8080",
 		Handler:           h,
 		ReadHeaderTimeout: 2 * time.Second,
 	}
-	return server, nil
+	server.ConnContext = func(ctx context.Context, _ net.Conn) context.Context {
+		return context.WithValue(ctx, contextkey.Deps, deps)
+	}
+	return &server, nil
 }

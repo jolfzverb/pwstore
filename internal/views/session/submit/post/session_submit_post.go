@@ -13,6 +13,7 @@ import (
 	"github.com/jolfzverb/pwstore/internal/api"
 	googleopenid "github.com/jolfzverb/pwstore/internal/clients/google_open_id"
 	pendingsessions "github.com/jolfzverb/pwstore/internal/components/storages/pending_sessions"
+	"github.com/jolfzverb/pwstore/internal/contextkey"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
 )
 
@@ -26,9 +27,9 @@ type GoogleOpenIDClaims struct {
 
 func PostSessionSubmit(
 	ctx context.Context,
-	deps dependencies.Collection,
 	request api.PostSessionSubmitRequestObject,
 ) (api.PostSessionSubmitResponseObject, error) {
+	deps := ctx.Value(contextkey.Deps).(*dependencies.Collection)
 	session, err := deps.PendingSessionsStorage.FetchPendingSession(ctx, request.Body.SessionId)
 	if errors.Is(err, pendingsessions.ErrSessionNotFound) {
 		return api.PostSessionSubmit404Response{}, nil

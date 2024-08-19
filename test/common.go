@@ -19,6 +19,7 @@ import (
 	"github.com/jolfzverb/pwstore/internal/components/secrets"
 	pendingsessions "github.com/jolfzverb/pwstore/internal/components/storages/pending_sessions"
 	"github.com/jolfzverb/pwstore/internal/components/storages/sessions"
+	"github.com/jolfzverb/pwstore/internal/contextkey"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
 	"github.com/jolfzverb/pwstore/internal/endpoints"
 )
@@ -144,8 +145,8 @@ func Prepare(t *testing.T) TestContext {
 		SessionsStorage:        sessions.CreateStorage(testContext.db),
 		GoogleOpenIDClient:     googleOpenIDClient,
 	}
-	testContext.handler = endpoints.GetHandler(deps)
-	testContext.ctx = context.Background()
+	testContext.handler = endpoints.GetHandler()
+	testContext.ctx = context.WithValue(context.Background(), contextkey.Deps, &deps)
 	testContext.googleOpenIDMock = googleOpenIDMock
 	return testContext
 }

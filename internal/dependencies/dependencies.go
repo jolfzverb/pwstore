@@ -33,7 +33,7 @@ func CreateDependencies(configFile string, secretsFile string) (*Collection, err
 		return nil, fmt.Errorf("failed to get secrets: %w", err)
 	}
 
-	deps.DB, err = postgres.CreateDB(*deps.Secrets)
+	deps.DB, err = postgres.CreateDB(deps.Secrets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create db: %w", err)
 	}

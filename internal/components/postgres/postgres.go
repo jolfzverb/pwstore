@@ -12,7 +12,7 @@ import (
 
 type Postgres = sql.DB
 
-func CreateDB(secret secrets.Model) (*Postgres, error) {
+func CreateDB(secret *secrets.Model) (*Postgres, error) {
 	db, err := sql.Open("postgres", secret.Database.ConnectionString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to db: %w", err)

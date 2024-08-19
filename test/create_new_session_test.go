@@ -20,7 +20,7 @@ func TestCreateNewSession(t *testing.T) {
 			&Headers{"Idempotency-Key": "idempotency_token"})
 
 		expectedResponse := `{
-				"session_id":"session",
+				"session_id":"session_id",
 				"authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
 				"response_type": "code",
 				"client_id": "client_id",
