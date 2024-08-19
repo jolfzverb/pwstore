@@ -8,14 +8,15 @@ import (
 
 	"github.com/jolfzverb/pwstore/internal/api"
 	"github.com/jolfzverb/pwstore/internal/components/storages/sessions"
+	"github.com/jolfzverb/pwstore/internal/contextkey"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
 )
 
 func GetSessionInfo(
 	ctx context.Context,
-	deps dependencies.Collection,
 	request api.GetSessionInfoRequestObject,
 ) (api.GetSessionInfoResponseObject, error) {
+	deps := ctx.Value(contextkey.Deps).(*dependencies.Collection)
 	if len(request.Params.Authorization) <= len("Bearer ") {
 		slog.Warn("Invalid token format")
 		return api.GetSessionInfo400Response{}, nil
