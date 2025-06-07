@@ -106,12 +106,8 @@ linters:
     nlreturn:
       block-size: 2
   exclusions:
-    #generated: lax
     presets:
       - comments
-      #- common-false-positives
-      #- legacy
-      #- std-error-handling
 
 formatters:
   enable:
@@ -131,5 +127,3 @@ formatters:
     goimports:
       local-prefixes:
         - github.com/jolfzverb/pwstore
-  #exclusions:
-    #generated: lax
