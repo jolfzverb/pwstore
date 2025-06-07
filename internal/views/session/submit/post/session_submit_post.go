@@ -2,19 +2,20 @@ package sessionsubmitpost
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/go-faster/errors"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/jolfzverb/pwstore/internal/api"
 	googleopenid "github.com/jolfzverb/pwstore/internal/clients/google_open_id"
 	pendingsessions "github.com/jolfzverb/pwstore/internal/components/storages/pending_sessions"
-	"github.com/jolfzverb/pwstore/internal/contextkey"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
+	"github.com/jolfzverb/pwstore/internal/generated/api"
+	"github.com/jolfzverb/pwstore/internal/generated/api/models"
 )
 
 type GoogleOpenIDClaims struct {
@@ -25,29 +26,29 @@ type GoogleOpenIDClaims struct {
 	jwt.RegisteredClaims
 }
 
-func PostSessionSubmit(
-	ctx context.Context,
-	request api.PostSessionSubmitRequestObject,
-) (api.PostSessionSubmitResponseObject, error) {
-	deps := ctx.Value(contextkey.Deps).(*dependencies.Collection)
-	session, err := deps.PendingSessionsStorage.FetchPendingSession(ctx, request.Body.SessionId)
+type Handler struct {
+	Deps *dependencies.Collection
+}
+
+func (h *Handler) HandleSubmit(ctx context.Context, r *models.SubmitRequest) (*models.SubmitResponse, error) {
+	session, err := h.Deps.PendingSessionsStorage.FetchPendingSession(ctx, r.Body.SessionID)
 	if errors.Is(err, pendingsessions.ErrSessionNotFound) {
-		return api.PostSessionSubmit404Response{}, nil
+		return api.Submit404Response(), nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to query session: %w", err)
+		return nil, errors.New("failed to query session: " + fmt.Sprint(err))
 	}
 
 	tokenRequest := googleopenid.PostTokenFormdataRequestBody{
-		Code:         request.Body.Code,
-		ClientId:     deps.Config.OpenIDSettings.ClientID,
-		ClientSecret: deps.Secrets.OpenIDSettings.ClientSecret,
-		RedirectUri:  deps.Config.OpenIDSettings.RedirectURI,
-		GrantType:    deps.Config.OpenIDSettings.GrantType,
+		Code:         r.Body.Code,
+		ClientId:     h.Deps.Config.OpenIDSettings.ClientID,
+		ClientSecret: h.Deps.Secrets.OpenIDSettings.ClientSecret,
+		RedirectUri:  h.Deps.Config.OpenIDSettings.RedirectURI,
+		GrantType:    h.Deps.Config.OpenIDSettings.GrantType,
 	}
-	tokenResponse, err := deps.GoogleOpenIDClient.PostTokenWithFormdataBodyWithResponse(ctx, tokenRequest)
+	tokenResponse, err := h.Deps.GoogleOpenIDClient.PostTokenWithFormdataBodyWithResponse(ctx, tokenRequest)
 	if err != nil {
-		return nil, fmt.Errorf("failed to request token: %w", err)
+		return nil, errors.New("failed to request token: " + fmt.Sprint(err))
 	}
 	slog.Debug("Finished request to /token", slog.String("body", string(tokenResponse.Body)))
 
@@ -57,48 +58,49 @@ func PostSessionSubmit(
 			errorDescription = *tokenResponse.JSON400.ErrorDescription
 		}
 		slog.Warn(fmt.Sprintf("Error on getting token %s: %s", tokenResponse.JSON400.Error, errorDescription))
-		return api.PostSessionSubmit401Response{}, nil
+
+		return api.Submit401Response(), nil
 	}
 
 	if tokenResponse.JSON200 == nil {
-		return nil, fmt.Errorf("token response is not OK: %d!=200, body=%s",
-			tokenResponse.StatusCode(), string(tokenResponse.Body))
+		return nil, errors.New("token response is not OK: " +
+			strconv.Itoa(tokenResponse.StatusCode()) + "!=200, body=" + string(tokenResponse.Body))
 	}
 
 	idToken := tokenResponse.JSON200.IdToken
 
-	parsedToken, _, err := jwt.NewParser().ParseUnverified(idToken, &GoogleOpenIDClaims{})
+	parsedToken, _, err := jwt.NewParser().ParseUnverified(idToken, &GoogleOpenIDClaims{}) //nolint:exhaustruct
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
+		return nil, errors.New("failed to parse token: " + fmt.Sprint(err))
 	}
 	tokenClaims, ok := parsedToken.Claims.(*GoogleOpenIDClaims)
 	if !ok {
-		return nil, fmt.Errorf("failed to extract claims")
+		return nil, errors.New("failed to extract claims")
 	}
 
-	if tokenClaims.Issuer != deps.Config.OpenIDSettings.Issuer {
-		return nil, fmt.Errorf("token issuer is invalid: %s", tokenClaims.Issuer)
+	if tokenClaims.Issuer != h.Deps.Config.OpenIDSettings.Issuer {
+		return nil, errors.New("token issuer is invalid: " + tokenClaims.Issuer)
 	}
-	if len(tokenClaims.Audience) != 1 || tokenClaims.Audience[0] != deps.Config.OpenIDSettings.ClientID {
-		return nil, fmt.Errorf("token audience is invalid: %s", strings.Join(tokenClaims.Audience, ","))
+	if len(tokenClaims.Audience) != 1 || tokenClaims.Audience[0] != h.Deps.Config.OpenIDSettings.ClientID {
+		return nil, errors.New("token audience is invalid: " + strings.Join(tokenClaims.Audience, ","))
 	}
 	if tokenClaims.ExpiresAt.Before(time.Now()) {
-		return nil, fmt.Errorf("token already expired: %s", tokenClaims.ExpiresAt.String())
+		return nil, errors.New("token already expired: " + tokenClaims.ExpiresAt.String())
 	}
 	if tokenClaims.Nonce != session.Nonce {
-		return nil, fmt.Errorf("token nonce does not match: %s != %s", tokenClaims.Nonce, session.Nonce)
+		return nil, errors.New("token nonce does not match: " + tokenClaims.Nonce + " != " + session.Nonce)
 	}
 	if !tokenClaims.EmailVerified {
-		return nil, fmt.Errorf("email is not verified")
+		return nil, errors.New("email is not verified")
 	}
 
-	newSession, err := deps.SessionsStorage.InsertSession(
+	newSession, err := h.Deps.SessionsStorage.InsertSession(
 		ctx, session.SessionID, tokenClaims.Subject, tokenClaims.Email, idToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return nil, errors.New("failed to create session: " + fmt.Sprint(err))
 	}
 
-	return api.PostSessionSubmit200JSONResponse{
+	return api.Submit200Response(models.SubmitSessionResponse{
 		Token: newSession.Token,
-	}, nil
+	}), nil
 }

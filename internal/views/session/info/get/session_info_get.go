@@ -6,42 +6,43 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/jolfzverb/pwstore/internal/api"
 	"github.com/jolfzverb/pwstore/internal/components/storages/sessions"
-	"github.com/jolfzverb/pwstore/internal/contextkey"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
+	"github.com/jolfzverb/pwstore/internal/generated/api"
+	"github.com/jolfzverb/pwstore/internal/generated/api/models"
 )
 
-func GetSessionInfo(
-	ctx context.Context,
-	request api.GetSessionInfoRequestObject,
-) (api.GetSessionInfoResponseObject, error) {
-	deps := ctx.Value(contextkey.Deps).(*dependencies.Collection)
-	if len(request.Params.Authorization) <= len("Bearer ") {
+type Handler struct {
+	Deps *dependencies.Collection
+}
+
+func (h *Handler) HandleInfo(ctx context.Context, r *models.InfoRequest) (*models.InfoResponse, error) {
+	if len(r.Headers.Authorization) <= len("Bearer ") {
 		slog.Warn("Invalid token format")
-		return api.GetSessionInfo400Response{}, nil
+		return api.Info400Response(), nil
 	}
-	token := request.Params.Authorization[len("Bearer "):]
+	token := (r.Headers.Authorization)[len("Bearer "):]
 	if len(token) == 0 {
 		slog.Warn("Invalid token format")
-		return api.GetSessionInfo400Response{}, nil
+		return api.Info400Response(), nil
 	}
-	if len(request.Params.SessionId) == 0 {
+	if len(r.Query.SessionID) == 0 {
 		slog.Warn("Invalid session_id format")
-		return api.GetSessionInfo400Response{}, nil
+		return api.Info400Response(), nil
 	}
 
-	session, err := deps.SessionsStorage.SelectSession(ctx, request.Params.SessionId, token)
+	session, err := h.Deps.SessionsStorage.SelectSession(ctx, r.Query.SessionID, token)
 	if errors.Is(err, sessions.ErrSessionNotFound) {
 		slog.Warn(fmt.Sprintf("Session not found for (session_id, token): %v", err))
-		return api.GetSessionInfo401Response{}, nil
+		return api.Info401Response(), nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session: %w", err)
 	}
 
-	response := api.GetSessionInfo200JSONResponse{
-		Email: session.Email,
-	}
-	return response, nil
+	return api.Info200Response(
+		models.SessionInfo{
+			Email: session.Email,
+		},
+	), nil
 }

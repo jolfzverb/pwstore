@@ -25,7 +25,7 @@ type Model struct {
 }
 
 func GetConfig(filename string) (*Model, error) {
-	data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}

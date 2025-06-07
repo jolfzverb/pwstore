@@ -60,7 +60,7 @@ func TestSubmitSession(t *testing.T) {
 		//nolint:bodyclose
 		c.googleOpenIDMock.Add("/token", c.MockHelper(TokenRequest(), TokenResponse(), http.StatusOK))
 
-		body := `{"code":"auth_code"}`
+		body := `{"code":"auth_code", "session_id":"session_id"}`
 		code, response := c.MakeRequest(http.MethodPost, "/session/submit", &body, nil)
 
 		require.EqualValues(t, 200, code)
