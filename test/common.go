@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-faster/errors"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 
@@ -19,9 +20,11 @@ import (
 	"github.com/jolfzverb/pwstore/internal/components/secrets"
 	pendingsessions "github.com/jolfzverb/pwstore/internal/components/storages/pending_sessions"
 	"github.com/jolfzverb/pwstore/internal/components/storages/sessions"
-	"github.com/jolfzverb/pwstore/internal/contextkey"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
-	"github.com/jolfzverb/pwstore/internal/endpoints"
+	"github.com/jolfzverb/pwstore/internal/generated/api"
+	sessioninfoget "github.com/jolfzverb/pwstore/internal/views/session/info/get"
+	sessionnewpost "github.com/jolfzverb/pwstore/internal/views/session/new/post"
+	sessionsubmitpost "github.com/jolfzverb/pwstore/internal/views/session/submit/post"
 )
 
 type GoogleOpenIDMock struct {
@@ -33,7 +36,7 @@ func (m GoogleOpenIDMock) Do(request *http.Request) (*http.Response, error) {
 	handler, ok := m.handlers[path]
 
 	if !ok {
-		return nil, fmt.Errorf("GoogleOpenIdMock handler is not set for path %s", path)
+		return nil, errors.New("GoogleOpenIdMock handler is not set for path " + path)
 	}
 
 	return handler(request)
@@ -46,10 +49,9 @@ func (m GoogleOpenIDMock) Add(path string, handler func(*http.Request) (*http.Re
 type TestContext struct {
 	t                *testing.T
 	db               *sql.DB
-	handler          http.Handler
 	pgMock           sqlmock.Sqlmock
-	ctx              context.Context
 	googleOpenIDMock *GoogleOpenIDMock
+	deps             *dependencies.Collection
 }
 
 type (
@@ -59,8 +61,8 @@ type (
 
 func (c TestContext) PGMock(keys PGKeys, values PGValues) {
 	rows := sqlmock.NewRows(keys)
-	for i := 0; i < len(values); i++ {
-		rows = rows.AddRow(values[i]...)
+	for _, v := range values {
+		rows = rows.AddRow(v...)
 	}
 	c.pgMock.ExpectPrepare(".*").ExpectQuery().
 		WillReturnRows(rows)
@@ -70,13 +72,14 @@ func (c TestContext) MockHelper(requestBody string, responseBody string, status 
 ) func(*http.Request) (*http.Response, error) {
 	return func(r *http.Request) (*http.Response, error) {
 		bytes, err := io.ReadAll(r.Body)
-		defer r.Body.Close()
+		defer func() { _ = r.Body.Close() }()
 		if err != nil {
-			return nil, fmt.Errorf("failed to read request body")
+			return nil, errors.New("failed to read request body")
 		}
 		require.Equal(c.t, string(bytes), requestBody)
 		body := strings.NewReader(responseBody)
-		return &http.Response{
+
+		return &http.Response{ //nolint:exhaustruct
 			StatusCode: status,
 			Body:       io.NopCloser(body),
 			Header: http.Header{
@@ -93,20 +96,25 @@ func (c TestContext) MakeRequest(method string, path string, body *string, heade
 	if body != nil {
 		requestBody = *body
 	}
-	request, _ := http.NewRequestWithContext(c.ctx, method, path, strings.NewReader(requestBody))
+	request, _ := http.NewRequestWithContext(context.Background(), method, path, strings.NewReader(requestBody))
 	if headers != nil {
 		for k, v := range *headers {
 			request.Header.Add(k, v)
 		}
 	}
 	recorder := httptest.NewRecorder()
-	c.handler.ServeHTTP(recorder, request)
+	r := chi.NewRouter()
+	api.NewHandler(&sessionsubmitpost.Handler{Deps: c.deps}, &sessionnewpost.Handler{Deps: c.deps},
+		&sessioninfoget.Handler{Deps: c.deps},
+	).AddRoutes(r)
+	r.ServeHTTP(recorder, request)
 	response := recorder.Result()
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	bytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		c.t.Errorf("Failed to read response body: %v", err)
 	}
+
 	return response.StatusCode, string(bytes)
 }
 
@@ -145,12 +153,12 @@ func Prepare(t *testing.T) TestContext {
 		SessionsStorage:        sessions.CreateStorage(testContext.db),
 		GoogleOpenIDClient:     googleOpenIDClient,
 	}
-	testContext.handler = endpoints.GetHandler()
-	testContext.ctx = context.WithValue(context.Background(), contextkey.Deps, &deps)
 	testContext.googleOpenIDMock = googleOpenIDMock
+	testContext.deps = &deps
+
 	return testContext
 }
 
 func Finalize(c TestContext) {
-	c.db.Close()
+	_ = c.db.Close()
 }

@@ -1,31 +1,31 @@
-package sessionnewpost
+package sessioncreatepost
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/jolfzverb/pwstore/internal/api"
-	"github.com/jolfzverb/pwstore/internal/contextkey"
 	"github.com/jolfzverb/pwstore/internal/dependencies"
+	"github.com/jolfzverb/pwstore/internal/generated/api"
+	"github.com/jolfzverb/pwstore/internal/generated/api/models"
 )
 
-func PostSessionNew(
-	ctx context.Context,
-	request api.PostSessionNewRequestObject,
-) (api.PostSessionNewResponseObject, error) {
-	deps := ctx.Value(contextkey.Deps).(*dependencies.Collection)
-	session, err := deps.PendingSessionsStorage.CreatePendingSession(ctx, request.Params.IdempotencyKey)
+type Handler struct {
+	Deps *dependencies.Collection
+}
+
+func (h *Handler) HandleCreate(ctx context.Context, r *models.CreateRequest) (*models.CreateResponse, error) {
+	session, err := h.Deps.PendingSessionsStorage.CreatePendingSession(ctx, r.Headers.IdempotencyKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
-	return api.PostSessionNew200JSONResponse(api.NewSessionResponse{
-		SessionId:             session.SessionID,
-		AuthorizationEndpoint: deps.Config.OpenIDSettings.AuthorizationEndpoint,
-		ResponseType:          deps.Config.OpenIDSettings.ResponseType,
-		ClientId:              deps.Config.OpenIDSettings.ClientID,
-		Scope:                 deps.Config.OpenIDSettings.Scope,
-		RedirectUri:           deps.Config.OpenIDSettings.RedirectURI,
+	return api.Create200Response(models.NewSessionResponse{
+		SessionID:             session.SessionID,
+		AuthorizationEndpoint: h.Deps.Config.OpenIDSettings.AuthorizationEndpoint,
+		ResponseType:          h.Deps.Config.OpenIDSettings.ResponseType,
+		ClientID:              h.Deps.Config.OpenIDSettings.ClientID,
+		Scope:                 models.NewSessionResponseScope(h.Deps.Config.OpenIDSettings.Scope),
+		RedirectURI:           h.Deps.Config.OpenIDSettings.RedirectURI,
 		State:                 session.State,
 		Nonce:                 session.Nonce,
 	}), nil

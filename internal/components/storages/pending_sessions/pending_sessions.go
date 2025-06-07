@@ -3,8 +3,9 @@ package pendingsessions
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"fmt"
+
+	"github.com/go-faster/errors"
 
 	"github.com/jolfzverb/pwstore/internal/components/postgres"
 )
@@ -35,15 +36,15 @@ func CreateStorage(db *postgres.Postgres) *Storage {
 func (s Storage) CreatePendingSession(ctx context.Context, idempotencyToken string) (*PendingSession, error) {
 	stmt, err := s.db.PrepareContext(ctx, insertNewSessionSQL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+		return nil, errors.New("failed to prepare statement: " + fmt.Sprint(err))
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
-	session := PendingSession{}
+	session := PendingSession{} //nolint:exhaustruct
 	err = stmt.QueryRowContext(ctx, idempotencyToken).
 		Scan(&session.IdempotencyToken, &session.SessionID, &session.Nonce, &session.State)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute statement: %w", err)
+		return nil, errors.New("failed to execute statement: " + fmt.Sprint(err))
 	}
 
 	return &session, nil
@@ -52,32 +53,32 @@ func (s Storage) CreatePendingSession(ctx context.Context, idempotencyToken stri
 func (s Storage) FetchPendingSession(ctx context.Context, sessionID string) (*PendingSession, error) {
 	stmt, err := s.db.PrepareContext(ctx, selectSessionSQL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+		return nil, errors.New("failed to prepare statement: " + fmt.Sprint(err))
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	sessions := make([]PendingSession, 0, 1)
 	rows, err := stmt.QueryContext(ctx, sessionID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query: %w", err)
+		return nil, errors.New("failed to execute query: " + fmt.Sprint(err))
 	}
 	for rows.Next() {
 		var session PendingSession
 		err = rows.Scan(&session.IdempotencyToken, &session.SessionID, &session.Nonce, &session.State)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse session row: %w", err)
+			return nil, errors.New("failed to parse session row: " + fmt.Sprint(err))
 		}
 		sessions = append(sessions, session)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to scan sessions: %w", err)
+		return nil, errors.New("failed to scan sessions: " + fmt.Sprint(err))
 	}
 
 	if len(sessions) == 0 {
 		return nil, ErrSessionNotFound
 	}
 	if len(sessions) > 1 {
-		return nil, fmt.Errorf("multiple sessions found")
+		return nil, errors.New("multiple sessions found")
 	}
 
 	return &sessions[0], nil

@@ -3,8 +3,9 @@ package sessions
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"fmt"
+
+	"github.com/go-faster/errors"
 
 	"github.com/jolfzverb/pwstore/internal/components/postgres"
 )
@@ -42,11 +43,11 @@ func (s Storage) InsertSession(
 ) (*Session, error) {
 	stmt, err := s.db.PrepareContext(ctx, insertNewSessionSQL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+		return nil, errors.New("failed to prepare statement: " + fmt.Sprint(err))
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
-	session := Session{}
+	session := Session{} //nolint:exhaustruct
 	err = stmt.QueryRowContext(ctx, sessionID, subject, email, idToken).Scan(
 		&session.SessionID,
 		&session.Subject,
@@ -54,12 +55,12 @@ func (s Storage) InsertSession(
 		&session.IDToken,
 		&session.Token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute statement: %w", err)
+		return nil, errors.New("failed to execute statement: " + fmt.Sprint(err))
 	}
 
 	if session.SessionID != sessionID || session.Subject != subject ||
 		session.Email != email || session.IDToken != idToken {
-		return nil, fmt.Errorf("session mismatch error")
+		return nil, errors.New("session mismatch error")
 	}
 
 	return &session, nil
@@ -68,25 +69,25 @@ func (s Storage) InsertSession(
 func (s Storage) SelectSession(ctx context.Context, sessionID string, token string) (*Session, error) {
 	stmt, err := s.db.PrepareContext(ctx, selectSessionBySessionIDAndTokenSQL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+		return nil, errors.New("failed to prepare statement: " + fmt.Sprint(err))
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	sessions := make([]Session, 0, 1)
 	rows, err := stmt.QueryContext(ctx, sessionID, token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query: %w", err)
+		return nil, errors.New("failed to execute query: " + fmt.Sprint(err))
 	}
 	for rows.Next() {
 		var session Session
 		err = rows.Scan(&session.SessionID, &session.Subject, &session.Email, &session.IDToken, &session.Token)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse session row: %w", err)
+			return nil, errors.New("failed to parse session row: " + fmt.Sprint(err))
 		}
 		sessions = append(sessions, session)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to scan sessions: %w", err)
+		return nil, errors.New("failed to scan sessions: " + fmt.Sprint(err))
 	}
 
 	if len(sessions) == 0 {
@@ -94,7 +95,7 @@ func (s Storage) SelectSession(ctx context.Context, sessionID string, token stri
 	}
 
 	if len(sessions) > 1 {
-		return nil, fmt.Errorf("multiple sessions found")
+		return nil, errors.New("multiple sessions found")
 	}
 
 	return &sessions[0], nil

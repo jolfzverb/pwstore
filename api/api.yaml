@@ -6,6 +6,7 @@ info:
 paths:
   /session/new:
     post:
+      operationId: create
       summary: Initiate new session
       parameters:
         - name: Idempotency-Key
@@ -23,6 +24,7 @@ paths:
 
   /session/submit:
     post:
+      operationId: submit
       summary: Submit authorization code
       requestBody:
         required: true
@@ -54,6 +56,7 @@ paths:
 
   /session/info:
     get:
+      operationId: info
       summary: Get session info
       parameters:
         - name: Authorization
